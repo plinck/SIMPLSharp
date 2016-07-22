@@ -50,6 +50,7 @@ namespace UIUserObject
         /// This function should exit ... If this function does not exit then the program will not start
         public override void InitializeSystem()
         {
+            // Assign the delagate method to the UserObject for this event / join number
             myXpanel.BooleanOutput[5].UserObject = new System.Action<bool>(b => myUIActionClass.VolumeUp(b));
 
             return;
