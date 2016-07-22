@@ -91,9 +91,7 @@
         <CompiledOn>7/22/2016 8:29:44 AM</CompiledOn>
         <AdditionalInfo />
         <EmbedSourceArchive>False</EmbedSourceArchive>
-        <CopyTo>
-          <DebugAnyCPU />
-        </CopyTo>
+        <CopyTo />
         <OriginalReferenceSources />
       </FlavorProperties>
     </VisualStudio>
