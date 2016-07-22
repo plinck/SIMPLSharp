@@ -1,34 +1,24 @@
 ﻿//Please uncomment the #define line below if you want to include the sample code 
 // in the compiled output.
 // for the sample to work, you'll have to add a reference to the SimplSharpPro.UI dll to your project.
-//#define IncludeSampleCode
+#define IncludeSampleCode
 
 using System;
-using Crestron.SimplSharp;                          				// For Basic SIMPL# Classes
-using Crestron.SimplSharpPro;                       				// For Basic SIMPL#Pro classes
+using Crestron.SimplSharp;                          	// For Basic SIMPL# Classes
+using Crestron.SimplSharpPro;                  			// For Basic SIMPL#Pro classes
+using Crestron.SimplSharp.CrestronIO;                   // For IR files etc
 using Crestron.SimplSharpPro.CrestronThread;        	// For Threading
-using Crestron.SimplSharpPro.Diagnostics;		    		// For System Monitor Access
+using Crestron.SimplSharpPro.Diagnostics;		    	// For System Monitor Access
 using Crestron.SimplSharpPro.DeviceSupport;         	// For Generic Device Support
-
-#if IncludeSampleCode
-using Crestron.SimplSharpPro.UI;                    			// For UI Devices. Please include the 
-																// Crestron.SimplSharpPro.UI DLL as a reference to your project.
-#endif
+using Crestron.SimplSharpPro.UI;                    	// For UI Devices. Please include the 
 
 namespace LinckATLSIMPLSharpPro
 {
     public class ControlSystem : CrestronControlSystem
     {
         // Define local variables ...
-#if IncludeSampleCode
-        public Tsw750 My750;
-        public Tsw550 My550;
-        public XpanelForSmartGraphics MyXpanel;
-        public ComPort MyCOMPort;
-
-        private CrestronQueue<String> RxQueue = new CrestronQueue<string>();
-        private Thread RxHandler;
-#endif
+        public XpanelForSmartGraphics myXpanel;
+        public IROutputPort myIROutputDevice;
 
         /// <summary>
         /// Constructor of the Control System Class. Make sure the constructor always exists.
@@ -43,7 +33,6 @@ namespace LinckATLSIMPLSharpPro
             // the right number depends on your project; do not make this number unnecessarily large
             Thread.MaxNumberOfUserThreads = 20;
 
-#if IncludeSampleCode
             //Subscribe to the controller events (System, Program, and Etherent)
             CrestronEnvironment.SystemEventHandler += new SystemEventHandler(ControlSystem_ControllerSystemEventHandler);
             CrestronEnvironment.ProgramStatusEventHandler += new ProgramStatusEventHandler(ControlSystem_ControllerProgramEventHandler);
@@ -53,49 +42,22 @@ namespace LinckATLSIMPLSharpPro
             // Check if device supports Ethernet
             if (this.SupportsEthernet)
             {
-                My750 = new Tsw750(0x03, this);                     // Register the TSW750 on IPID 0x03
-                My550 = new Tsw550(0x04, this);                     // Register the TSW550 on IPID 0x04
-                MyXpanel = new XpanelForSmartGraphics(0x05, this);  // Register the Xpanel on IPID 0x05
+                myXpanel = new XpanelForSmartGraphics(0xA5, this);  // Register the Xpanel on IPID 0xA5
 
                 // Register a single eventhandler for all three UIs. This guarantees that they all operate 
                 // the same way.
-                My750.SigChange += new SigEventHandler(MySigChangeHandler);
-                My550.SigChange += new SigEventHandler(MySigChangeHandler);
-                MyXpanel.SigChange += new SigEventHandler(MySigChangeHandler);
-
-
+                myXpanel.SigChange += new SigEventHandler(MySigChangeHandler);
 
                 // Register the devices for usage. This should happen after the 
                 // eventhandler registration, to ensure no data is missed.
-
-                if (My750.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
-                    ErrorLog.Error("My750 failed registration. Cause: {0}", My750.RegistrationFailureReason);
-                if (My550.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
-                    ErrorLog.Error("My550 failed registration. Cause: {0}", My550.RegistrationFailureReason);
-                if (MyXpanel.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
-                    ErrorLog.Error("MyXpanel failed registration. Cause: {0}", MyXpanel.RegistrationFailureReason);
-
+                if (myXpanel.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
+                    ErrorLog.Error("MyXpanel failed registration. Cause: {0}", myXpanel.RegistrationFailureReason);
             }
+            // Load IR Driver
+            myIROutputDevice = IROutputPorts[1];
+            myIROutputDevice.LoadIRDriver(String.Format(@"{0}\IR\Samsung_LNS4051.ir", Directory.GetApplicationDirectory()));
 
-            if (this.SupportsComPort)
-            {
-                MyCOMPort = this.ComPorts[1];
-                MyCOMPort.SerialDataReceived += new ComPortDataReceivedEvent(myComPort_SerialDataReceived);
-
-                if (MyCOMPort.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
-                    ErrorLog.Error("COM Port couldn't be registered. Cause: {0}", MyCOMPort.DeviceRegistrationFailureReason);
-				
-				if  (MyCOMPort.Registered)
-					MyCOMPort.SetComPortSpec(ComPort.eComBaudRates.ComspecBaudRate38400,
-																	 ComPort.eComDataBits.ComspecDataBits8,
-																	 ComPort.eComParityType.ComspecParityNone,
-																	 ComPort.eComStopBits.ComspecStopBits1,
-                                         ComPort.eComProtocolType.ComspecProtocolRS232,
-                                         ComPort.eComHardwareHandshakeType.ComspecHardwareHandshakeNone,
-                                         ComPort.eComSoftwareHandshakeType.ComspecSoftwareHandshakeNone,
-                                         false);
-            }
-#endif
+            return;
         }
 
         /// <summary>
@@ -107,63 +69,18 @@ namespace LinckATLSIMPLSharpPro
         public override void InitializeSystem()
         {
             // This should always return   
-#if IncludeSampleCode
-            if (this.SupportsComPort && MyCOMPort.Registered)
-                RxHandler = new Thread(RxMethod, null, Thread.eThreadStartOptions.Running);
-#endif
-        }
+            tvFamilyRoom myTVFamilyRoom = new tvFamilyRoom();
 
-#if IncludeSampleCode
+            // This statements defines the usertech for this signal as a delegate to run the class method
+            // So, when this particular signal is invoked the delatge function invokes the class method
+            myXpanel.BooleanInput[5].UserObject = new System.Action<bool>(b => myTVFamilyRoom.VolumeUp(b));
 
-        /// <summary>
-        /// This method will take messages of the Receive queue, and find the 
-        /// delimiter. This is where you would put the parsing.
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
-        object RxMethod(object obj)
-        {
-            StringBuilder RxData = new StringBuilder();
-            int Pos = -1;
-
-            String MatchString = String.Empty;
-            // the Dequeue method will wait, making this an acceptable
-            // while (true) implementation.
-            while (true)
-            {
-                try
-                {
-                    // removes string from queue, blocks until an item is queued
-                    string tmpString = RxQueue.Dequeue();
-
-                    if (tmpString == null)
-                        return null; // terminate the thread
-
-                    RxData.Append(tmpString); //Append received data to the COM buffer
-                    MatchString = RxData.ToString();
-
-                    //find the delimiter
-                    Pos = MatchString.IndexOf(Convert.ToChar("\n"));
-                    if (Pos >= 0)
-                    {
-                        // delimiter found
-                        // create temporary string with matched data.
-                        MatchString = MatchString.Substring(0, Pos + 1);
-                        RxData.Remove(0, Pos + 1); // remove data from COM buffer
-
-                        // parse data here
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ErrorLog.Error("Exception in thread: {0}", ex.Message);
-                }
-            }
+            return;
         }
 
         /// <summary>
         /// This method is an eventhandler. In this sample, it handles the signal events
-        /// from the TSW750, TS550, and the XPanel.
+        /// from all touchpanels, and the XPanel.
         /// This event will not retrigger, until you exit the currently running eventhandler.
         /// Use threads, or dispatch to a worker, to exit this function quickly.
         /// </summary>
@@ -173,6 +90,24 @@ namespace LinckATLSIMPLSharpPro
         /// to properly parse the event.</param>
         void MySigChangeHandler(GenericBase currentDevice, SigEventArgs args)
         {
+            var sig = args.Sig;
+            var uo = sig.UserObject;
+
+            if (uo is Action<bool>)                             // If the userobject for this signal is boolean
+            {
+                (uo as System.Action<bool>)(sig.BoolValue);     // cast this signal's userobject as delegate Action<bool>
+                                                                // passing one parm - the value of the bool
+            }
+            else if (uo is Action<ushort>)
+            {
+                (uo as Action<ushort>)(sig.UShortValue);
+            }
+            else if (uo is Action<string>)
+            {
+                (uo as Action<string>)(sig.StringValue);
+            }
+
+            /*
             switch (args.Sig.Type)
             {
                 case eSigType.Bool:
@@ -181,41 +116,26 @@ namespace LinckATLSIMPLSharpPro
                         {
                             switch (args.Sig.Number)
                             {
-                                case 10:
-                                    {
-                                        MyCOMPort.Send("!start\n");
-                                        break;
-                                    }
-                                case 11:
-                                    {
-                                        MyCOMPort.Send("!stop\n");
-                                        if (currentDevice == My550 || currentDevice == My750)
-                                            ((BasicTriList)currentDevice).BooleanInput[50].BoolValue = true; // send digital value to touchscreen
-                                        else
-                                        {
-                                            MyXpanel.BooleanInput[50].BoolValue = true;   // send digital value to xpanel
-                                            MyXpanel.BooleanInput[120].BoolValue = false; // send digital value to xpanel
-                                        }
-                                        break;
-                                    }
+                                case 5:
+                                    // process boolean press 5
+                                    break;
                             }
                         }
                         if (args.Sig.Type == eSigType.UShort)
                         {
                             switch (args.Sig.Number)
                             {
-                                case (15):
-                                    {
-                                        MyCOMPort.Send(String.Format("!volume={0}\n", args.Sig.UShortValue));
-                                        break;
-                                    }
+                                case 5:
+                                    // process number 5
+                                    break;
                             }
                         }
                         break;
                     }
 
             }
-        }
+            */
+        }//Event Handler
 
         /// <summary>
         /// This event is triggered whenever an Ethernet event happens. 
@@ -240,7 +160,8 @@ namespace LinckATLSIMPLSharpPro
                     }
                     break;
             }
-        }
+        }// Event handler
+  
 
         /// <summary>
         /// This event is triggered whenever a program event happens (such as stop, pause, resume, etc.)
@@ -262,8 +183,6 @@ namespace LinckATLSIMPLSharpPro
                     //Shutdown all Client/Servers in the system.
                     //General cleanup.
                     //Unsubscribe to all System Monitor events
-
-                    RxQueue.Enqueue(null); // The RxThread will terminate when it receives a null
                     break;
             }
 
@@ -291,18 +210,19 @@ namespace LinckATLSIMPLSharpPro
 
         }
 
-        /// <summary>
-        /// This event gets triggered whenever data comes in on the serial port. 
-        /// This event will not retrigger, until you exit the currently running eventhandler.
-        /// Use threads, or dispatch to a worker, to exit this function quickly.
-        /// </summary>
-        /// <param name="ReceivingComPort">This is a reference to the COM port sending the data</param>
-        /// <param name="args">This holds all the data received.</param>
-        void myComPort_SerialDataReceived(ComPort ReceivingComPort, ComPortSerialDataEventArgs args)
+    }
+
+    // Class for IR
+    public class tvFamilyRoom
+    {
+
+        public void VolumeUp(bool b)
         {
-            RxQueue.Enqueue(args.SerialData);
+            // test git change
+            // Need to figure out how to deal with IR Devices - the correct way - seems like static class>?
+            // myIROutputDevice.PressAndRelease("Volup", 10);
+            CrestronConsole.PrintLine("Volume Up Triggered");
         }
-#endif
 
     }
 }
