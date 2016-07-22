@@ -50,7 +50,7 @@ namespace UIUserObject
         /// This function should exit ... If this function does not exit then the program will not start
         public override void InitializeSystem()
         {
-            myXpanel.BooleanInput[5].UserObject = new System.Action<bool>(b => myUIActionClass.VolumeUp(b));
+            myXpanel.BooleanOutput[5].UserObject = new System.Action<bool>(b => myUIActionClass.VolumeUp(b));
 
             return;
         }
@@ -138,7 +138,7 @@ namespace UIUserObject
 
             public void VolumeUp(bool b)
             {
-                CrestronConsole.PrintLine("Volume Up Triggered");
+                CrestronConsole.PrintLine("Volume Up Triggered Value: {0}", b);
             }
 
         }
