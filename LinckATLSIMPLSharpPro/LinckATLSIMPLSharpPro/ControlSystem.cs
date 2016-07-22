@@ -14,6 +14,7 @@ namespace LinckATLSIMPLSharpPro
         // Define local variables ...
         public XpanelForSmartGraphics myXpanel;
         public IROutputPort myIROutputDevice;
+        tvFamilyRoom myTVFamilyRoom = new tvFamilyRoom();
 
         /// <summary>
         /// Constructor of the Control System Class. Make sure the constructor always exists.
@@ -22,6 +23,7 @@ namespace LinckATLSIMPLSharpPro
         public ControlSystem()
             : base()
         {
+            CrestronConsole.PrintLine("Program SIMPL#Pro LinckATLSIMPLSharpPro started ...");
 
             // Set the number of threads which you want to use in your program - At this point the threads cannot be created but we should
             // define the max number of threads which we will use in the system.
@@ -63,12 +65,6 @@ namespace LinckATLSIMPLSharpPro
         /// </summary>
         public override void InitializeSystem()
         {
-            // This should always return   
-            tvFamilyRoom myTVFamilyRoom = new tvFamilyRoom();
-
-            // This statements defines the usertech for this signal as a delegate to run the class method
-            // So, when this particular signal is invoked the delatge function invokes the class method
-            myXpanel.BooleanInput[5].UserObject = new System.Action<bool>(b => myTVFamilyRoom.VolumeUp(b));
 
             return;
         }
@@ -88,7 +84,13 @@ namespace LinckATLSIMPLSharpPro
             var sig = args.Sig;
             var uo = sig.UserObject;
 
-            if (uo is Action<bool>)                             // If the userobject for this signal is boolean
+            CrestronConsole.PrintLine("Event sig: {0}, Type: {1}", sig.Number, sig.GetType());
+
+            // This statement defines the userobject for this signal as a delegate to run the class method
+            // So, when this particular signal is invoked the delatge function invokes the class method
+            myXpanel.BooleanInput[5].UserObject = new System.Action<bool>(b => myTVFamilyRoom.VolumeUp(b));
+
+            if (uo is Action<bool>)                             // If the userobject for this signal with boolean
             {
                 (uo as System.Action<bool>)(sig.BoolValue);     // cast this signal's userobject as delegate Action<bool>
                                                                 // passing one parm - the value of the bool
