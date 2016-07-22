@@ -1,9 +1,4 @@
-﻿//Please uncomment the #define line below if you want to include the sample code 
-// in the compiled output.
-// for the sample to work, you'll have to add a reference to the SimplSharpPro.UI dll to your project.
-#define IncludeSampleCode
-
-using System;
+﻿using System;
 using Crestron.SimplSharp;                          	// For Basic SIMPL# Classes
 using Crestron.SimplSharpPro;                  			// For Basic SIMPL#Pro classes
 using Crestron.SimplSharp.CrestronIO;                   // For IR files etc
