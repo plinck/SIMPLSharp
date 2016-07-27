@@ -165,16 +165,6 @@ namespace ssCertMain
                 // Injects a new console command for use in text console 
                 // I am thinking this may be handy to help debug - e.g. fire events to test (like doorbell ringing )...
                 CrestronConsole.AddNewConsoleCommand(UpperCase, "ToUpper", "Converts string to UPPER case", ConsoleAccessLevelEnum.AccessOperator);
-
-                // List all the cresnet devices - note: Query might not work for duplicate devices
-                var returnVar = CrestronCresnetHelper.Query();
-                if (returnVar == CrestronCresnetHelper.eCresnetDiscoveryReturnValues.Success)
-                {
-                    foreach (var item in CrestronCresnetHelper.DiscoveredElementsList)
-                    {
-                        CrestronConsole.PrintLine("Found Item: {0}, {1}", item.CresnetId, item.DeviceModel);
-                    }
-                }
             }
             catch (Exception e)
             {
@@ -190,6 +180,9 @@ namespace ssCertMain
 
                 if (myKeypad.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
                     ErrorLog.Error("myKeypad failed registration. Cause: {0}", myKeypad.RegistrationFailureReason);
+				
+				// List all the cresnet devices - note: Query might not work for duplicate devices
+				PllHelperClass.DisplayCresnetDevices();
             }
         }
 
@@ -197,7 +190,9 @@ namespace ssCertMain
         public override void InitializeSystem()
         {
             // This statement defines the userobject for this signal as a delegate to run the class method
-            // So, when this particular signal is invoked the delatge function invokes the class method
+            // So, when this particular signal is invoked the delegate function invokes the class method
+			// I have demonstrated 3 different ways to assign the action with and without parms as well
+			// as lambda notation vs simplified - need to test to see whagt does and does not work
             actionBIC = new ButtonInterfaceController();
             myKeypad.Button[1].UserObject = new System.Action<eButtonState>(p => actionBIC.BReadFile(p));
             myKeypad.Button[2].UserObject = new System.Action<eButtonState>(actionBIC.BGetHTTPFile);
@@ -322,6 +317,21 @@ namespace ssCertMain
 
         }
     } // Class
+	
+	static class PllHelperClass
+	{
+		public static void DisplayCresnetDevices()
+		{
+			var returnVar = CrestronCresnetHelper.Query();
+			if (returnVar == CrestronCresnetHelper.eCresnetDiscoveryReturnValues.Success)
+			{
+				foreach (var item in CrestronCresnetHelper.DiscoveredElementsList)
+				{
+					CrestronConsole.PrintLine("Found Item: {0}, {1}", item.CresnetId, item.DeviceModel);
+				}
+			}
+		}
+	}
 
     class ButtonInterfaceController
     {
