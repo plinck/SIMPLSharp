@@ -1,0 +1,37 @@
+#INCLUDEPATH "..\bin"
+#USER_SIMPLSHARP_LIBRARY "SSHClient"
+
+DIGITAL_INPUT Trigger;
+BUFFER_INPUT Command[65534];
+
+SSHClientDevice MyClient;
+
+PUSH Trigger
+{
+	MyClient.Connect("127.0.0.1", 22, "crestron","");
+}
+
+THREADSAFE CHANGE Command
+{
+	While(1)
+	{
+		Try
+		{
+			MyClient.SendCommand(gather("\n",Command));
+		}
+		Catch
+		{
+		}
+	}
+}
+
+CALLBACK Function DataReceived(STRING str)
+{
+	//Print("Output: %s\n",str);
+	MyClient.parseData(str);
+}
+
+Function Main()
+{
+	RegisterDelegate(MyClient,SerialDataReceived,DataReceived);
+}

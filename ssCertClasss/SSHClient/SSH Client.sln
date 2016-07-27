@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SSHClient", "SSHClient\SSHClient.csproj", "{FD1ED7C2-745D-4498-AB06-711FFF1D81E7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SSH Client SSP", "SSH Client SSP\SSH Client SSP.csproj", "{188CAD30-2CEA-48F8-9738-1F2052F65CC5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FD1ED7C2-745D-4498-AB06-711FFF1D81E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD1ED7C2-745D-4498-AB06-711FFF1D81E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD1ED7C2-745D-4498-AB06-711FFF1D81E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD1ED7C2-745D-4498-AB06-711FFF1D81E7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{188CAD30-2CEA-48F8-9738-1F2052F65CC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{188CAD30-2CEA-48F8-9738-1F2052F65CC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{188CAD30-2CEA-48F8-9738-1F2052F65CC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{188CAD30-2CEA-48F8-9738-1F2052F65CC5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
