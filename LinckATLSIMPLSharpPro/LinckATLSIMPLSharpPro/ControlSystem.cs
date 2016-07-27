@@ -121,7 +121,7 @@ namespace LinckATLSIMPLSharpPro
         // Define local variables ...
         public XpanelForSmartGraphics myXpanel;
         public IROutputPort myIROutputDevice;
-        tvFamilyRoom myTVFamilyRoom;
+        tvFamilyRoom myTVFamilyRoom = new tvFamilyRoom();
         C2nCbdP myKeypad;
 
         /// <summary>
@@ -243,10 +243,7 @@ namespace LinckATLSIMPLSharpPro
 
             // This statement defines the userobject for this signal as a delegate to run the class method
             // So, when this particular signal is invoked the delatge function invokes the class method
-            myTVFamilyRoom = new tvFamilyRoom();
             myXpanel.BooleanOutput[5].UserObject = new System.Action<bool>(b => myTVFamilyRoom.VolumeUp(b));
-            // another way to represent
-            myXpanel.BooleanOutput[6].UserObject = new System.Action<bool>(myTVFamilyRoom.VolumeUp);
 
             return;
         }
@@ -271,7 +268,7 @@ namespace LinckATLSIMPLSharpPro
             if (uo is Action<bool>)                             // If the userobject for this signal with boolean
             {
                 (uo as System.Action<bool>)(sig.BoolValue);     // cast this signal's userobject as delegate Action<bool>
-                                                                // passing one parm - the value of the bool
+                // passing one parm - the value of the bool
             }
             else if (uo is Action<ushort>)
             {
