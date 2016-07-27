@@ -317,8 +317,11 @@ namespace ssCertMain
 
         }
     } // Class
-	
-	static class PllHelperClass
+
+    /***************************************************************
+    // PllHelperClass static helper methods
+    *****************************************************************/
+    static class PllHelperClass
 	{
 		public static void DisplayCresnetDevices()
 		{
