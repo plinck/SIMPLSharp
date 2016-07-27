@@ -23,21 +23,23 @@ namespace ssCertMain
         private FileStream myFileStream;
 
         // get file from SFTP and return string
-        public void getFromSFTP(string url, int port, string userName, string password, string tempFileName)
+        public void getFromSFTP(string hostname, int port, string userName, string password, string tempFileName, string fileName)
         {
             try
             {
-                mySFTPClient = new SftpClient(url, port, userName, password);
+                mySFTPClient = new SftpClient(hostname, port, userName, password);
                 myFileStream = new FileStream(tempFileName, FileMode.Create);
 
                 mySFTPClient.Connect();
-                mySFTPClient.DownloadFile(url, myFileStream, DownloadDone); // DownloadDone is Action<ulong>
+                mySFTPClient.DownloadFile(fileName, myFileStream, DownloadDone); // DownloadDone is Action<ulong>
 
                 return;
             }
             catch (Exception e)
             {
-                CrestronConsole.PrintLine("Exception {0}", e);
+                CrestronConsole.PrintLine("Document.getFromSFTP() Exception {0}", e);
+                CrestronConsole.PrintLine("Document.getFromSFTP() Host {0}, Port {1}, User {2}, fileName {3}",
+                                            hostname, port, userName, fileName);
                 throw;
             }
             finally
@@ -227,6 +229,7 @@ namespace ssCertMain
             #endregion
 
             #region "Hardcoded* button invocation
+            /*
             // Call direction until UserObject stuff working
             ButtonInterfaceController myBIC = new ButtonInterfaceController();
             if (sig.State == eButtonState.Pressed)
@@ -244,6 +247,7 @@ namespace ssCertMain
                         break;
                 }
             }
+            */
             #endregion
         } // Event Handler
 
@@ -336,6 +340,9 @@ namespace ssCertMain
 		}
 	}
 
+    /***************************************************************
+    // ButtonInterfaceContoller - Handles Button functionality
+    *****************************************************************/
     class ButtonInterfaceController
     {
         public void BReadFile(eButtonState bs)
@@ -382,7 +389,7 @@ namespace ssCertMain
             DocumentSFTP myDocumentSFTP;
 
             myDocumentSFTP = new DocumentSFTP();
-            myDocumentSFTP.getFromSFTP(@"SFTP://127.0.0.1/Books.xml", 22, "Crestron", "", @"\NVRAM\temp.txt");
+            myDocumentSFTP.getFromSFTP(@"127.0.0.1", 22, "Crestron", "", @"\NVRAM\temp.txt", @"/NVRAM/Books.xml");
         }
 
     } // class

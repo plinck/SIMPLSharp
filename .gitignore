@@ -270,3 +270,4 @@ ModelManifest.xml
 *.exe
 *.ASV
 *.c3prj
+*.dll
