@@ -1,20 +1,128 @@
 ﻿using System;
 using Crestron.SimplSharp;                          	// For Basic SIMPL# Classes
-using Crestron.SimplSharpPro;                  			// For Basic SIMPL#Pro classes
 using Crestron.SimplSharp.CrestronIO;                   // For IR files etc
+using Crestron.SimplSharp.Net.Http;
+using Crestron.SimplSharp.Ssh;
+using Crestron.SimplSharpPro;                  			// For Basic SIMPL#Pro classes
 using Crestron.SimplSharpPro.CrestronThread;        	// For Threading
 using Crestron.SimplSharpPro.Diagnostics;		    	// For System Monitor Access
 using Crestron.SimplSharpPro.DeviceSupport;         	// For Generic Device Support
+using Crestron.SimplSharpPro.Keypads;                   // Keypads
 using Crestron.SimplSharpPro.UI;                    	// For UI Devices. Please include the 
 
 namespace LinckATLSIMPLSharpPro
 {
+    public class CustomSFTP
+    {
+        SftpClient mySFTPClient;
+        Crestron.SimplSharp.CrestronIO.FileStream myFileStream;
+
+        // get file from SFTP and return string
+        public void getFromSFTP(string url)
+        {
+            try
+            {
+                myFileStream = new FileStream(@"\NVRAM\temp.txt", FileMode.Create);
+                mySFTPClient = new SftpClient(url, 22, "Crestron", "");
+
+                mySFTPClient.Connect();
+                mySFTPClient.DownloadFile(url, myFileStream, DownloadDone);
+
+                return;
+            }
+            catch (Exception e)
+            {
+                CrestronConsole.PrintLine("Exception {0}", e);
+                return;
+            }
+            finally
+            {
+                mySFTPClient.Disconnect();
+                myFileStream.Close();
+            }
+        }
+
+        private void DownloadDone(ulong size)
+        {
+            CrestronConsole.PrintLine("Download file size: {0}", size);
+        }
+    }
+    // Define Local Variables
+    public class OpenHTTPFile
+    {
+        public string localFilePath = @"\NVRAM\Books.xml";
+        public string httpHost = @"http://textfiles.com/computers/1pt4mb.inf";
+        public string htmlPageString;
+
+        HttpClient myHttpClient;
+        
+        public void getHTTPPage()
+        {
+            myHttpClient = new HttpClient();
+
+            CrestronConsole.PrintLine("In getHTTPPage");
+
+            try
+            {
+                htmlPageString = myHttpClient.Get(httpHost);
+            }
+            catch (Exception e)
+            {
+                CrestronConsole.PrintLine("Exception {0}", e);
+                throw;
+            }
+
+            CrestronConsole.PrintLine(htmlPageString);
+        }
+
+    }
+
+    public class MyFileReader
+    {
+        private FileStream myFileStream;
+        private StreamReader myStreamReader;
+
+        public string myFileStringContents { get; set; }
+
+        public ushort OpenLocalFile(String strPath)
+        {
+            ushort returnvalue;
+
+            returnvalue = 0;
+            try
+            {
+                myFileStream = new FileStream(strPath, FileMode.Open);
+            }
+            catch (DirectoryNotFoundException e)
+            {
+                CrestronConsole.PrintLine("Directory not found {0}", e);
+                throw;
+            }
+            catch (PathTooLongException e)
+            {
+                CrestronConsole.PrintLine("Path too long {0}", e);
+                throw;
+            }
+            catch (Exception e)
+            {
+                CrestronConsole.PrintLine("Exception {0}", e);
+                throw;
+            }
+            myStreamReader = new StreamReader(myFileStream);
+            myFileStringContents = myStreamReader.ReadToEnd();
+
+            return returnvalue;
+        }
+
+    }
+
     public class ControlSystem : CrestronControlSystem
     {
         // Define local variables ...
         public XpanelForSmartGraphics myXpanel;
         public IROutputPort myIROutputDevice;
-        tvFamilyRoom myTVFamilyRoom = new tvFamilyRoom();
+        tvFamilyRoom myTVFamilyRoom;
+        C2nCbdP myKeypad;
 
         /// <summary>
         /// Constructor of the Control System Class. Make sure the constructor always exists.
@@ -23,17 +131,45 @@ namespace LinckATLSIMPLSharpPro
         public ControlSystem()
             : base()
         {
-            CrestronConsole.PrintLine("Program SIMPL#Pro LinckATLSIMPLSharpPro started ...");
+            CrestronConsole.PrintLine("Hello World - Program SIMPL#Pro LinckATLSIMPLSharpPro started ...");
 
             // Set the number of threads which you want to use in your program - At this point the threads cannot be created but we should
             // define the max number of threads which we will use in the system.
             // the right number depends on your project; do not make this number unnecessarily large
-            Thread.MaxNumberOfUserThreads = 20;
+            try
+            {
+                Thread.MaxNumberOfUserThreads = 20;
 
-            //Subscribe to the controller events (System, Program, and Etherent)
-            CrestronEnvironment.SystemEventHandler += new SystemEventHandler(ControlSystem_ControllerSystemEventHandler);
-            CrestronEnvironment.ProgramStatusEventHandler += new ProgramStatusEventHandler(ControlSystem_ControllerProgramEventHandler);
-            CrestronEnvironment.EthernetEventHandler += new EthernetEventHandler(ControlSystem_ControllerEthernetEventHandler);
+               //Subscribe to the controller events (System, Program, and Etherent)
+                CrestronEnvironment.SystemEventHandler += new SystemEventHandler(ControlSystem_ControllerSystemEventHandler);
+                CrestronEnvironment.ProgramStatusEventHandler += new ProgramStatusEventHandler(ControlSystem_ControllerProgramEventHandler);
+                CrestronEnvironment.EthernetEventHandler += new EthernetEventHandler(ControlSystem_ControllerEthernetEventHandler);
+                CrestronConsole.AddNewConsoleCommand(UpperCase, "ToUpper", "Replies to strings un Upper case", ConsoleAccessLevelEnum.AccessOperator);
+                var returnVar = CrestronCresnetHelper.Query();
+                if (returnVar == CrestronCresnetHelper.eCresnetDiscoveryReturnValues.Success)
+                {
+                    foreach (var item in CrestronCresnetHelper.DiscoveredElementsList)
+                    {
+                        CrestronConsole.PrintLine("Found Item: {0}, {1}", item.CresnetId, item.DeviceModel);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                ErrorLog.Error("Error in constructor: {0}", e.Message);
+            }
+
+ 
+            // Reghister Keypad
+            if (this.SupportsCresnet)
+            {
+                myKeypad = new C2nCbdP(0x25, this);
+
+                myKeypad.ButtonStateChange += new ButtonEventHandler(myKeypad_ButtonStateChange);
+
+                if (myKeypad.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
+                    ErrorLog.Error("myKeypad failed registration. Cause: {0}", myKeypad.RegistrationFailureReason);
+            }
 
             // Register all devices which the program wants to use
             // Check if device supports Ethernet
@@ -50,11 +186,50 @@ namespace LinckATLSIMPLSharpPro
                 if (myXpanel.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
                     ErrorLog.Error("MyXpanel failed registration. Cause: {0}", myXpanel.RegistrationFailureReason);
             }
-            // Load IR Driver
+            // Load IR DriverC:\Users\paul\Documents\GitHubWin10\SIMPLSharp\LinckATLSIMPLSharpPro\LinckATLSIMPLSharpPro\Properties\ControlSystem.cfg
             myIROutputDevice = IROutputPorts[1];
             myIROutputDevice.LoadIRDriver(String.Format(@"{0}\IR\Samsung_LNS4051.ir", Directory.GetApplicationDirectory()));
 
             return;
+        }
+
+        public void UpperCase(string response)
+        {
+            CrestronConsole.ConsoleCommandResponse("ToUpper: {0} ", response.ToUpper());
+
+        }
+        // Keypad state handler
+        void myKeypad_ButtonStateChange(GenericBase device, ButtonEventArgs args)
+        {
+            var sig = args.Button;
+            var uo = sig.UserObject;
+            
+            CrestronConsole.PrintLine("Event sig: {0}, Type: {1}, Name: {2}", sig.Number, sig.GetType(), sig.Name);
+
+            // Read a file example
+            CrestronConsole.PrintLine("File Read Example");
+            MyFileReader myFileReader = new MyFileReader();
+            string myFileContents;
+            ushort i;
+            
+            CrestronConsole.PrintLine("Reading File example");
+            i = myFileReader.OpenLocalFile("\\NVRAM\\Books.xml");
+            myFileContents = myFileReader.myFileStringContents;
+            CrestronConsole.PrintLine(myFileContents);
+
+            // HTTP File Example
+            CrestronConsole.PrintLine("HTTP Read Example");
+            OpenHTTPFile myHTTPFile;
+
+            myHTTPFile = new OpenHTTPFile();
+            myHTTPFile.getHTTPPage();
+
+            // SFTP{ File Example
+            CrestronConsole.PrintLine("SFTP Read Example");
+            CustomSFTP myCustomSFTP;
+
+            myCustomSFTP = new CustomSFTP();
+            myCustomSFTP.getFromSFTP(@"SFTP://127.0.0.1/Books.xml");
         }
 
         /// <summary>
@@ -65,6 +240,13 @@ namespace LinckATLSIMPLSharpPro
         /// </summary>
         public override void InitializeSystem()
         {
+
+            // This statement defines the userobject for this signal as a delegate to run the class method
+            // So, when this particular signal is invoked the delatge function invokes the class method
+            myTVFamilyRoom = new tvFamilyRoom();
+            myXpanel.BooleanOutput[5].UserObject = new System.Action<bool>(b => myTVFamilyRoom.VolumeUp(b));
+            // another way to represent
+            myXpanel.BooleanOutput[6].UserObject = new System.Action<bool>(myTVFamilyRoom.VolumeUp);
 
             return;
         }
@@ -85,10 +267,6 @@ namespace LinckATLSIMPLSharpPro
             var uo = sig.UserObject;
 
             CrestronConsole.PrintLine("Event sig: {0}, Type: {1}", sig.Number, sig.GetType());
-
-            // This statement defines the userobject for this signal as a delegate to run the class method
-            // So, when this particular signal is invoked the delatge function invokes the class method
-            myXpanel.BooleanInput[5].UserObject = new System.Action<bool>(b => myTVFamilyRoom.VolumeUp(b));
 
             if (uo is Action<bool>)                             // If the userobject for this signal with boolean
             {
