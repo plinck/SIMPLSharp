@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Crestron.SimplSharp;                          	// For Basic SIMPL# Classes
 using Crestron.SimplSharp.CrestronIO;                   // IO
 using Crestron.SimplSharp.Net.Http;
@@ -9,6 +10,8 @@ using Crestron.SimplSharpPro.Diagnostics;		    	// For System Monitor Access
 using Crestron.SimplSharpPro.DeviceSupport;         	// For Generic Device Support
 using Crestron.SimplSharpPro.GeneralIO;
 using Crestron.SimplSharpPro.Keypads;                   // Keypads
+using Crestron.SimplSharpPro.UI;                        // Touchpanels
+using Crestron.SimplSharp.Reflection;                   // Reflection
 
 namespace ssCertMain
 {
@@ -18,14 +21,19 @@ namespace ssCertMain
     public class ControlSystem : CrestronControlSystem
     {
         // Define local variables ...
-        C2nCbdP myKeypad;
-        ButtonInterfaceController actionBIC;
+        private C2nCbdP myKeypad;
+        private XpanelForSmartGraphics myXpanel;
+        private SigGroup mySigGroup;
+        private ButtonInterfaceController actionBIC;
+        private Assembly myAssembly;
+        private CType myCType;
+        private object myInstance;
 
         // Entry point
         public ControlSystem()
             : base()
         {
-            CrestronConsole.PrintLine("Hello World - Program SIMPL#Pro LinckATLSIMPLSharpPro started ...");
+            CrestronConsole.PrintLine("ssCertMain started ...");
 
             try
             {
@@ -45,10 +53,12 @@ namespace ssCertMain
                 ErrorLog.Error("ControlSystem() - Error in constructor: {0}", e.Message);
             }
 
+            #region Keypad
             // Register Keypad
             if (this.SupportsCresnet)
             {
-                myKeypad = new C2nCbdP(0x25, this);
+                myKeypad = new C2nCbdP(0x24, this);
+                // myKeypad = new C2nCbdP(0x25, this);
 
                 myKeypad.ButtonStateChange += new ButtonEventHandler(myKeypad_ButtonStateChange);
 
@@ -58,21 +68,156 @@ namespace ssCertMain
 				// List all the cresnet devices - note: Query might not work for duplicate devices
 				PllHelperClass.DisplayCresnetDevices();
             }
+            #endregion
+
+            #region Xpanel
+            // Register Xpanel
+            if (this.SupportsEthernet)
+            {
+                myXpanel = new XpanelForSmartGraphics(0x03, this);
+
+                myXpanel.SigChange += new SigEventHandler(myXpanel_SigChange);
+
+                if (myXpanel.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
+                    ErrorLog.Error("myXpanel failed registration. Cause: {0}", myKeypad.RegistrationFailureReason);
+                else
+                {
+                    myXpanel.LoadSmartObjects(@"\NVRAM\Xpnl.sgd");
+                    CrestronConsole.PrintLine("sgd");
+                    foreach (KeyValuePair<uint, SmartObject>mySmartObject in myXpanel.SmartObjects)
+                    {
+                        mySmartObject.Value.SigChange += new SmartObjectSigChangeEventHandler(Value_SigChange);
+                    }
+
+                    // Typically you would create the group in init and then add items throughout the program
+                    mySigGroup = CreateSigGroup(1, myXpanel.StringInput[1]);
+                    mySigGroup.Add(myXpanel.StringInput[2]);
+                }
+            }
+            #endregion
         }
 
         // Initialize system
         public override void InitializeSystem()
         {
+            myAssembly = Assembly.GetExecutingAssembly();
+
             // This statement defines the userobject for this signal as a delegate to run the class method
             // So, when this particular signal is invoked the delegate function invokes the class method
-			// I have demonstrated 3 different ways to assign the action with and without parms as well
-			// as lambda notation vs simplified - need to test to see whagt does and does not work
+            // I have demonstrated 3 different ways to assign the action with and without parms as well
+            // as lambda notation vs simplified - need to test to see whagt does and does not work
             actionBIC = new ButtonInterfaceController();
             myKeypad.Button[1].UserObject = new System.Action<Button>(p => actionBIC.BReadFile(p));
             myKeypad.Button[2].UserObject = new System.Action<Button>(actionBIC.BGetHTTPFile);
             myKeypad.Button[3].UserObject = new System.Action(actionBIC.GetSFTPFile);
 
             return;
+        }
+
+        // Smart Object
+        // Use reflection to see what's inside
+        void Value_SigChange(GenericBase currentDevice, SmartObjectEventArgs args)
+        {
+            mySigGroup.StringValue = String.Format("Event Type: {0}, Signal {1}, from SmartObject: {2}",
+                                                    args.Sig.Type, args.Sig.Name, args.SmartObjectArgs.ID);
+            if (args.SmartObjectArgs.ID == 2)
+            {
+                if (args.Sig.Name == "1" && args.Sig.BoolValue) //
+                {
+                    myAssembly = Assembly.LoadFrom(@"\NVRAM\ReflectionLib1.dll");
+                    PrintContents();
+                }
+                if (args.Sig.Name == "2" && args.Sig.BoolValue)
+                {
+                    myAssembly = Assembly.LoadFrom(@"\NVRAM\ReflectionLib2.dll");
+                    PrintContents();
+                }
+            }
+
+            if (args.SmartObjectArgs.ID == 1)
+            {
+                if (args.Sig.Name.ToUpper() == "OK") //
+                {
+                    if (args.Sig.BoolValue)
+                    {
+                        if (myAssembly.FullName.ToUpper().Contains("REFLECTIONLIB2"))
+                        {
+                            myInstance = myAssembly.CreateInstance("ReflectionLib2.PrintToConsole");
+                            myCType = myInstance.GetType();
+                            MethodInfo method = myCType.GetMethod("PrintSomething");
+                            method.Invoke(myInstance, new object[] { "Hello World From Reflection \n" });
+                        }
+                        if (myAssembly.FullName.ToUpper().Contains("REFLECTIONLIB1"))
+                        {
+                            myInstance = myAssembly.CreateInstance("ReflectionLib1.RelayClicks");
+                            myCType = myInstance.GetType();
+                            FieldInfo field = myCType.GetField("cs");
+                            field.SetValue(myInstance, this);
+
+                            MethodInfo method = myCType.GetMethod("Initialize");
+                            method.Invoke(myInstance, new object[] { });
+
+                            method = myCType.GetMethod("StartClicking");
+                            method.Invoke(myInstance, new object[] { 500 });
+                        }
+                    }
+                    else
+                    {
+                        if (myAssembly.FullName.ToUpper().Contains("REFLECTIONLIB1"))
+                        {
+                            MethodInfo method = myCType.GetMethod("StopClicking");
+                            method.Invoke(myInstance, new object[] { });
+                        }
+                    }
+                }
+            }
+        }
+
+        void PrintContents()
+        {
+            foreach (CType type in myAssembly.GetTypes())
+            {
+                CrestronConsole.PrintLine("CType: {0} ", type.FullName);
+                foreach (ConstructorInfo constructor in type.GetConstructors())
+                {
+                    CrestronConsole.Print("{0} (", constructor.Name);
+                    foreach (ParameterInfo parameter in constructor.GetParameters())
+                    {
+                        CrestronConsole.Print("{0} {1}, ", parameter.ParameterType, parameter.Name);
+                    }
+                    CrestronConsole.PrintLine(")");
+                }
+                foreach (MethodInfo method in type.GetMethods())
+                {
+                    CrestronConsole.Print("{0} {1} (", method.ReturnType.Name, method.Name);
+                    foreach (ParameterInfo parameter in method.GetParameters())
+                    {
+                        CrestronConsole.Print("{0} {1}, ", parameter.ParameterType, parameter.Name);
+                    }
+                    CrestronConsole.PrintLine(")");
+                }
+                foreach (PropertyInfo property in type.GetProperties())
+                {
+                    CrestronConsole.PrintLine("{0} {1} {2} {3}", property.Name,
+                                            property.PropertyType.Name,
+                                            property.CanRead,
+                                            property.CanWrite);
+                }
+                foreach (FieldInfo field in type.GetFields())
+                {
+                    CrestronConsole.PrintLine("{0} {1};", field.Name,
+                                            field.FieldType.Name);
+                }
+            }
+        }
+
+        void myXpanel_SigChange(BasicTriList currentDevice, SigEventArgs args)
+        {
+            var sig = args.Sig;
+            var uo = sig.UserObject;
+
+            CrestronConsole.PrintLine("Event sig: {0}, Type: {1}", sig.Number, sig.GetType());
+
         }
 
         // This is the console command injected into shell - its like a deletage strongly typed in crestron
