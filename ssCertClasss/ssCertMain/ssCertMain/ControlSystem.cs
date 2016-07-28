@@ -68,8 +68,8 @@ namespace ssCertMain
 			// I have demonstrated 3 different ways to assign the action with and without parms as well
 			// as lambda notation vs simplified - need to test to see whagt does and does not work
             actionBIC = new ButtonInterfaceController();
-            myKeypad.Button[1].UserObject = new System.Action<eButtonState>(p => actionBIC.BReadFile(p));
-            myKeypad.Button[2].UserObject = new System.Action<eButtonState>(actionBIC.BGetHTTPFile);
+            myKeypad.Button[1].UserObject = new System.Action<Button>(p => actionBIC.BReadFile(p));
+            myKeypad.Button[2].UserObject = new System.Action<Button>(actionBIC.BGetHTTPFile);
             myKeypad.Button[3].UserObject = new System.Action(actionBIC.GetSFTPFile);
 
             return;
@@ -85,18 +85,18 @@ namespace ssCertMain
         // Keypad event handler
         void myKeypad_ButtonStateChange(GenericBase device, ButtonEventArgs args)
         {
-            var sig = args.Button;
-            var uo = sig.UserObject;
+            var btn = args.Button;
+            var uo = btn.UserObject;
 
-            CrestronConsole.PrintLine("Event sig: {0}, Type: {1}, State: {2}", sig.Number, sig.GetType(), sig.State);
+            CrestronConsole.PrintLine("Event sig: {0}, Type: {1}, State: {2}", btn.Number, btn.GetType(), btn.State);
 
             #region UserObject Action<> invocation
             // Need to fix this section so the action is not fired more than once on button press - for now it does.
             // for some reason
-            if (sig.State == eButtonState.Pressed)
+            if (btn.State == eButtonState.Pressed)
             {
-                if (uo is System.Action<eButtonState>) //if this userObject has been defined and is correct type
-                    (uo as System.Action<eButtonState>)(sig.State);
+                if (uo is System.Action<Button>) //if this userObject has been defined and is correct type
+                    (uo as System.Action<Button>)(btn);
                 else if (uo is System.Action)
                     (uo as System.Action)();
             }
@@ -347,15 +347,15 @@ namespace ssCertMain
     *****************************************************************/
     class ButtonInterfaceController
     {
-        public void BReadFile(eButtonState bs)
+        public void BReadFile(Button btn)
         {
             ReadFile();
         }
-        public void BGetHTTPFile(eButtonState bs)
+        public void BGetHTTPFile(Button btn)
         {
             GetHTTPFile();
         }
-        public void BGetSFTPFile(eButtonState bs)
+        public void BGetSFTPFile(Button btn)
         {
             GetSFTPFile();
         }
