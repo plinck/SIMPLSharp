@@ -15,11 +15,17 @@ using Crestron.SimplSharp.Reflection;                   // Reflection
 
 namespace ssCertMain
 {
+    public static class GV
+    {
+        public static ControlSystem MyControlSystem;
+    }
+
     /***************************************************************
     // Main control system class
     *****************************************************************/
     public class ControlSystem : CrestronControlSystem
     {
+
         // Define local variables ...
         private C2nCbdP myKeypad;
         private XpanelForSmartGraphics myXpanel;
@@ -34,6 +40,8 @@ namespace ssCertMain
             : base()
         {
             CrestronConsole.PrintLine("ssCertMain started ...");
+
+            GV.MyControlSystem = this;
 
             try
             {
@@ -100,7 +108,7 @@ namespace ssCertMain
         // Initialize system
         public override void InitializeSystem()
         {
-            myAssembly = Assembly.GetExecutingAssembly();
+            myAssembly = Assembly.GetExecutingAssembly();  // This is just to put *something*/*anything* in so not null
 
             // This statement defines the userobject for this signal as a delegate to run the class method
             // So, when this particular signal is invoked the delegate function invokes the class method
@@ -494,6 +502,8 @@ namespace ssCertMain
     {
         public void BReadFile(Button btn)
         {
+            IROutputPort myIR = GV.MyControlSystem.IROutputPorts[1];
+
             ReadFile();
         }
         public void BGetHTTPFile(Button btn)

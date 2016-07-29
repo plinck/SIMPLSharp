@@ -11,12 +11,17 @@ using Crestron.SimplSharp.Reflection;
 
 namespace ssCertDay3
 {
+    public static class GV
+    {
+        public static ControlSystem MyControlSystem;
+    }
+
     public class ControlSystem : CrestronControlSystem
     {
         // Define local variables ...
         private C2nCbdP myKeypad;
         private ButtonInterfaceController actionBIC;
-        private IROutputPort myIRPort;
+        private IROutputPort myIRPort1;
         private CrestronQueue<string> rxQueue = new CrestronQueue<string>();
         private Thread rxHandler;   // thread for com port 
 
@@ -25,6 +30,8 @@ namespace ssCertDay3
         {
             try
             {
+                GV.MyControlSystem = this;      // To Access ControlSystem (this) outside of ControlSystem Classs
+
                 Thread.MaxNumberOfUserThreads = 20;
 
                 //Subscribe to the controller events (System, Program, and Ethernet)
@@ -74,17 +81,17 @@ namespace ssCertDay3
                         ErrorLog.Error("Error Registering IR Slot {0}", ControllerIROutputSlot.DeviceRegistrationFailureReason);
                     else
                     {
-                        myIRPort = IROutputPorts[1];
-                        // myIRPort.LoadIRDriver(String.Format(@"{0}\IR\AppleTV.ir", Directory.GetApplicationDirectory()));
-                        myIRPort.LoadIRDriver(@"\NVRAM\AppleTV.ir");
-                        foreach (String s in myIRPort.AvailableStandardIRCmds())
+                        // IROutputPorts[1].LoadIRDriver(String.Format(@"{0}\IR\AppleTV.ir", Directory.GetApplicationDirectory()));
+                        IROutputPorts[1].LoadIRDriver(@"\NVRAM\AppleTV.ir");
+                        foreach (String s in IROutputPorts[1].AvailableStandardIRCmds())
                         {
                             CrestronConsole.PrintLine("AppleTV Std: {0}", s);
                         }
-                        foreach (String s in myIRPort.AvailableIRCmds())
+                        foreach (String s in IROutputPorts[1].AvailableIRCmds())
                         {
                             CrestronConsole.PrintLine("AppleTV Available: {0}", s);
                         }
+                        myIRPort1 = IROutputPorts[1];
                     }
                 }
                 #endregion
@@ -137,11 +144,9 @@ namespace ssCertDay3
 
         public override void InitializeSystem()
         {
-            object myObj = null;
-
             try
             {
-                rxHandler = new Thread(Gather, myObj, Thread.eThreadStartOptions.Running);
+                rxHandler = new Thread(Gather, (object)null, Thread.eThreadStartOptions.Running);
             }
             catch (Exception e)
             {
@@ -152,8 +157,8 @@ namespace ssCertDay3
             // I have demonstrated 3 different ways to assign the action with and without parms as well
             // as lambda notation vs simplified - need to test to see whagt does and does not work
             actionBIC = new ButtonInterfaceController();
-            myKeypad.Button[1].UserObject = new System.Action<Button, IROutputPort>((p, i) => actionBIC.BPressUp(p, i));
-            myKeypad.Button[2].UserObject = new System.Action<Button, IROutputPort>((p, i) => actionBIC.BPressDn(p, i));
+            myKeypad.Button[1].UserObject = new System.Action<Button>((p) => actionBIC.BPressUp(p));
+            myKeypad.Button[2].UserObject = new System.Action<Button>((p) => actionBIC.BPressDn(p));
         }
 
         // Data coming in from ComPort
@@ -165,6 +170,8 @@ namespace ssCertDay3
             }
         }
 
+        // The thread callback function.  Sit and wait for work.  release thread on program stopping
+        // by placing a null string at the end of the queue
         object Gather(object o)
         {
             StringBuilder rxData = new StringBuilder();
@@ -175,24 +182,29 @@ namespace ssCertDay3
             {
                 try
                 {
+                    CrestronConsole.PrintLine("Gathering");
+
                     string rxTemp = rxQueue.Dequeue();
                     if (rxTemp == null)
                         return null;
-                    CrestronConsole.PrintLine("Gathering");
+
                     rxData.Append(rxTemp);
                     rxGathered = rxData.ToString();
                     Pos = rxGathered.IndexOf("\n");
                     if (Pos >= 0)
                     {
-                        rxGathered.Substring(0, Pos + 1);
+                        rxGathered.Substring(0, Pos +1);
                         CrestronConsole.PrintLine("Gather: {0}", rxGathered);
-                        rxData.Remove(0, Pos + 1);
+                        rxData.Remove(0, Pos +1);
                     }
+                }
+                catch (System.ArgumentOutOfRangeException e)
+                {
+                    ErrorLog.Error("Error gathering - ArgumentOutOfRangeException: {0}", e);
                 }
                 catch (Exception e)
                 {
                     ErrorLog.Error("Error gathering: {0}", e);
-                    throw;
                 }
             }
         }
@@ -206,7 +218,6 @@ namespace ssCertDay3
 
         }
 
-
         // Keypad event handling
         void myKeypad_ButtonStateChange(GenericBase device, ButtonEventArgs args)
         {
@@ -216,26 +227,21 @@ namespace ssCertDay3
             // CrestronConsole.PrintLine("Event sig: {0}, Type: {1}, State: {2}", btn.Number, btn.GetType(), btn.State);
 
             #region UserObject Action<> invocation
-            /*
             // I have a big issue to contend with in these methods - what do you pass as arguments to the methods
             // I want to keep things decoupled but how do you get access to devices created, resgitered in control system
             // class when you in in classes that are outside the scope  e.g. Versiports, IRPorts etc.
             // Need to fix this section so the action is not fired more than once on button press - for now it does.
             // for some reason
-            if (btn.State == eButtonState.Pressed)
-            {
-                if (uo is System.Action<Button, IROutputPort>) //if this userObject has been defined and is correct type
-                    (uo as System.Action<Button, IROutputPort>)(btn, myIRPort);
-                else if (uo is System.Action<Button, Versiport>) //if this userObject has been defined and is correct type
-                    (uo as System.Action<Button, Versiport>)(btn, this.VersiPorts[btn.Number]);
-                else if (uo is System.Action)
-                    (uo as System.Action)();
-            }
-            */
+            if (uo is System.Action<Button>)            //if this userObject has been defined and is correct type
+                (uo as System.Action<Button>)(btn);
+            else if (uo is System.Action)
+                (uo as System.Action)();
+
             ButtonInterfaceController myBIC = new ButtonInterfaceController();
             #endregion
 
             #region "Hardcoded* button invocation
+            /*
             // Call direction until UserObject stuff working
             if (btn.State == eButtonState.Pressed)
             {
@@ -243,11 +249,11 @@ namespace ssCertDay3
                 switch (btn.Number)
                 {
                     case 1:
-                        myIRPort.Press("UP_ARROW");
+                        myIRPort1.Press("UP_ARROW");
                         ComPorts[1].Send("Test transmition, please ignore");
                         break;
                     case 2:
-                        myIRPort.Press("DN_ARROW");
+                        myIRPort1.Press("DN_ARROW");
                         ComPorts[1].Send("\n");
                         break;
                     default:
@@ -258,9 +264,10 @@ namespace ssCertDay3
 
             if (args.Button.State == eButtonState.Released)
             {
-                myIRPort.Release();
+                myIRPort1.Release();
                 this.VersiPorts[args.Button.Number].DigitalOut = false;
             }
+            */
             #endregion
         } // Event Handler
 
@@ -318,7 +325,6 @@ namespace ssCertDay3
 
         }
     }
-            // Keypad event handler
 
     /***************************************************************
     // PllHelperClass static helper methods
@@ -342,37 +348,44 @@ namespace ssCertDay3
     *****************************************************************/
     class ButtonInterfaceController
     {
-        public void BPressUp(Button btn, IROutputPort myIR)
+        public void BPressUp(Button btn)
         {
+            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+            Versiport myVersiport = GV.MyControlSystem.VersiPorts[btn.Number];
+            ComPort myComPort = GV.MyControlSystem.ComPorts[btn.Number];
 
             if (btn.State == eButtonState.Pressed)
             {
-                PressUp(myIR);
+                myVersiport.DigitalOut = true;
+                myIRPort1.Press("UP_ARROW");
+                myComPort.Send("Test transmition, please ignore");
+            }
+            if (btn.State == eButtonState.Released)
+            {
+                myVersiport.DigitalOut = false;
+                myIRPort1.Release();
+                myComPort.Send("\n");
             }
         }
 
-        public void BPressDn(Button btn, IROutputPort myIR)
+        public void BPressDn(Button btn)
         {
+            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+            Versiport myVersiport = GV.MyControlSystem.VersiPorts[btn.Number];
+            ComPort myComPort = GV.MyControlSystem.ComPorts[btn.Number];
+
             if (btn.State == eButtonState.Pressed)
             {
-                PressDn(myIR);
+                myVersiport.DigitalOut = true;
+                myIRPort1.Press("DN_ARROW");
+                myComPort.Send("\n");
             }
-        }
-        
-        public void PressUp(IROutputPort myIR)
-        {
-
-            myIR.PressAndRelease("UP_ARROW", 10);
-        }
-
- 
-        public void PressDn(IROutputPort myIR)
-        {
-
-            myIR.PressAndRelease("DN_ARROW", 10);
-            
-        }
- 
+            if (btn.State == eButtonState.Released)
+            {
+                myVersiport.DigitalOut = false;
+                myIRPort1.Release();
+            }
+        } 
     } // class
 
 }

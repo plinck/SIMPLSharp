@@ -78,7 +78,9 @@
   <ItemGroup>
     <Compile Include="ControlSystem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <None Include="IR\AppleTV.ir" />
+    <None Include="IR\AppleTV.ir">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="Properties\ControlSystem.cfg" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CompactFramework.CSharp.targets" />
