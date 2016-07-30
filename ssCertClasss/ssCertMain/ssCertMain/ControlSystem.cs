@@ -1,4 +1,5 @@
 using System;
+using System.Text;                                      // StringBuilder
 using System.Collections.Generic;
 using Crestron.SimplSharp;                          	// For Basic SIMPL# Classes
 using Crestron.SimplSharp.CrestronIO;                   // IO
@@ -54,6 +55,7 @@ namespace ssCertMain
                 // Injects a new console command for use in text console 
                 // I am thinking this may be handy to help debug - e.g. fire events to test (like doorbell ringing )...
                 CrestronConsole.AddNewConsoleCommand(UpperCase, "ToUpper", "Converts string to UPPER case", ConsoleAccessLevelEnum.AccessOperator);
+                CrestronConsole.AddNewConsoleCommand(PrintFullAssembly, "printass", "Loads and Prints Assembly", ConsoleAccessLevelEnum.AccessOperator);
             }
             catch (Exception e)
             {
@@ -97,7 +99,7 @@ namespace ssCertMain
 
                     // Typically you would create the group in init and then add items throughout the program
 					// NOTE to PAUL: Create Group here and when setting TP Defaults create groups
-                    mySigGroup = CreateSigGroup(1);
+                    mySigGroup = CreateSigGroup(1, eSigType.String);
                     mySigGroup.Add(myXpanel.StringInput[1]);
                     mySigGroup.Add(myXpanel.StringInput[2]);
                 }
@@ -107,7 +109,7 @@ namespace ssCertMain
 
         public override void InitializeSystem()
         {
-            myAssembly = Assembly.GetExecutingAssembly();  // This is just to put *something*/*anything* in so not null
+            LoadAssembly(@"\NVRAM\ReflectionLib1.dll");     // Load this assembly by default
 
 			// *********************************************************************************************
             // Below defines the userobject for this signal as a delegate to run the class method.
@@ -180,78 +182,113 @@ namespace ssCertMain
             {
                 if (args.Sig.BoolValue)				// If true, its a press
 				{
-					if (args.Sig.Name == "1")
-					{
-						myAssembly = Assembly.LoadFrom(@"\NVRAM\ReflectionLib1.dll");
-						PrintContents();
-					}
-					else if (args.Sig.Name == "2")
-					{
-						myAssembly = Assembly.LoadFrom(@"\NVRAM\ReflectionLib2.dll");
-						PrintContents();
-					}
+                    PrintFullAssembly(args.Sig.Name);
 				}
 			}
 			#endregion
 
         }
 
+		#region Load and Print Assembly
+        public void PrintFullAssembly(string assemblyNbr)
+        {
+            CrestronConsole.PrintLine("PrintFullAssembly {0}", assemblyNbr);
+
+            if (assemblyNbr == "1")
+            {
+                LoadAssembly(@"\NVRAM\ReflectionLib1.dll");
+                PrintContents();
+            }
+            else if (assemblyNbr == "2")
+            {
+                LoadAssembly(@"\NVRAM\ReflectionLib2.dll");
+                PrintContents();
+            }
+            CrestronConsole.PrintLine("PrintFullAssembly End {0}", assemblyNbr);
+        }
+
+        void LoadAssembly(string s)
+        {
+            myAssembly = Assembly.LoadFrom(s);
+        }
+
+        #endregion
+
 		#region PrintContents helper method
         void PrintContents()
         {
-           StringBuilder str = new StringBuilder();
+           StringBuilder sb = new StringBuilder();
 
-			foreach (CType type in myAssembly.GetTypes())
+           foreach (CType type in myAssembly.GetTypes())
 			{
-                CrestronConsole.PrintLine("CType: {0}\n\{", type.FullName);  // is this a class name? - format name\n{
+                CrestronConsole.PrintLine("CType:{0}\n", type.FullName);  // is this a class name? - format name\n{
+                sb.Append(@"{");
+                sb.AppendFormat("\n");
 				
 				// Do properties of class first - properties -> fields -> constructors -> methods
 				foreach (PropertyInfo property in type.GetProperties())
                 {
-                    CrestronConsole.PrintLine("{0} {1}\; \t\\\\{2},{3}\n, property.PropertyType.Name,
+                    CrestronConsole.PrintLine("\t{0} {1}; \t //{2},{3}\n", property.PropertyType.Name,
                                             property.Name,
-                                            property.CanRead,
-                                            property.CanWrite);					// e.g: int i; // read, write
+                                            property.CanRead.ToString(),
+                                            property.CanWrite.ToString());			// e.g: int i; // read, write
                 }
                 foreach (FieldInfo field in type.GetFields())
                 {
-                    CrestronConsole.PrintLine("{0} {1};\n", field.FieldType.Name,
+                    CrestronConsole.PrintLine("\t{0} {1};\n", field.FieldType.Name,
                                             field.Name);
                 }
 
                 foreach (ConstructorInfo constructor in type.GetConstructors())
                 {
-                    str.Empty();
-					
-					str.Append("\t{0} (", constructor.Name);
+                    if (sb.Length >0)
+                        sb.Remove(0, sb.Length);
+
+                    sb.AppendFormat("\t{0} (", constructor.Name);
 					// CrestronConsole.Print("{0} (", constructor.Name);
                     foreach (ParameterInfo parameter in constructor.GetParameters())
                     {
-						str.Append("{0} {1}, ", parameter.ParameterType, parameter.Name);						
+                        sb.AppendFormat("{0} {1}, ", parameter.ParameterType, parameter.Name);						
                     }
-					// Trim the ", " off the end if last paramerer
-					str.Trim(0, str.Length() - 2);
-					str.Append(")\n\t\{\n\t\}\n");
-                    CrestronConsole.PrintLine(str);
-					
-					str.Empty();
+                    // Trim the ", " off the end if last paramerer
+                    if (sb.Length > 1)
+                    {
+                        sb.Remove(sb.Length - 2, 2);
+                    }
+                    sb.AppendFormat(")\n\t");
+                    sb.Append(@"{");
+                    sb.AppendFormat("\n\t");
+                    sb.Append(@"}");
+                    sb.AppendFormat("\n");
+                    CrestronConsole.PrintLine(sb.ToString());
+
+                    if (sb.Length > 0)
+                        sb.Remove(0, sb.Length);
                 }
-                foreach (MethodInfo method in type.GetMethods())
+
+               foreach (MethodInfo method in type.GetMethods())
                 {
-                    str.Empty();
-					str.Append("\t{0} {1} (", method.ReturnType.Name, method.Name);
+                    if (sb.Length > 0)
+                        sb.Remove(0, sb.Length);
+
+                    sb.AppendFormat("\t{0} {1} (", method.ReturnType.Name, method.Name);
                     foreach (ParameterInfo parameter in method.GetParameters())
                     {
-						str.Append("{0} {1}, ", parameter.ParameterType, parameter.Name);						
+                        sb.AppendFormat("{0} {1}, ", parameter.ParameterType, parameter.Name);						
                     }
 					// Trim the ", " off the end if last paramerer
-					str.Trim(0, str.Length() - 2);
-					str.Append(")\n\t\{\n\t\}\n");
-                    CrestronConsole.PrintLine(str);
-					
-					str.Empty();
+					sb.Remove(sb.Length - 2, 2);
+                    sb.AppendFormat(")\n\t");
+                    sb.Append(@"{");
+                    sb.AppendFormat("\n\t");
+                    sb.Append(@"}");
+                    sb.AppendFormat("\n");
+                    CrestronConsole.PrintLine(sb.ToString());
+
+                    if (sb.Length > 0)
+                        sb.Remove(0, sb.Length);
                 }
-				CrestronConsole.PrintLine("\n\}\n");  // end of class definition
+               CrestronConsole.PrintLine(@"}");  // end of class definition
 
 			}
         }

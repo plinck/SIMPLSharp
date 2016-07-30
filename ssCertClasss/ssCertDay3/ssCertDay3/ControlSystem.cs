@@ -1,13 +1,13 @@
 using System;
 using System.Text;
 using Crestron.SimplSharp;                          	// For Basic SIMPL# Classes
+using Crestron.SimplSharp.CrestronIO;                   // for directory()
+using Crestron.SimplSharp.Reflection;
 using Crestron.SimplSharpPro;                       	// For Basic SIMPL#Pro classes
 using Crestron.SimplSharpPro.CrestronThread;        	// For Threading
 using Crestron.SimplSharpPro.Diagnostics;		    	// For System Monitor Access
 using Crestron.SimplSharpPro.DeviceSupport;         	// For Generic Device Support
 using Crestron.SimplSharpPro.Keypads;
-using Crestron.SimplSharp.CrestronIO;                  // for directory()
-using Crestron.SimplSharp.Reflection;
 
 namespace ssCertDay3
 {

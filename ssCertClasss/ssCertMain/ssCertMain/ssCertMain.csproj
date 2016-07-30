@@ -92,6 +92,9 @@
   <ItemGroup>
     <Content Include="VTP\Xpnl.c3p" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="IR\" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CompactFramework.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>rem S# Pro preparation will execute after these operations</PostBuildEvent>
