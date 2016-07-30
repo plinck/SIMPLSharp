@@ -192,8 +192,6 @@ namespace ssCertMain
 		#region Load and Print Assembly
         public void PrintFullAssembly(string assemblyNbr)
         {
-            CrestronConsole.PrintLine("PrintFullAssembly {0}", assemblyNbr);
-
             if (assemblyNbr == "1")
             {
                 LoadAssembly(@"\NVRAM\ReflectionLib1.dll");
@@ -204,7 +202,6 @@ namespace ssCertMain
                 LoadAssembly(@"\NVRAM\ReflectionLib2.dll");
                 PrintContents();
             }
-            CrestronConsole.PrintLine("PrintFullAssembly End {0}", assemblyNbr);
         }
 
         void LoadAssembly(string s)
@@ -221,72 +218,72 @@ namespace ssCertMain
 
            foreach (CType type in myAssembly.GetTypes())
 			{
-                CrestronConsole.PrintLine("CType:{0}\n", type.FullName);  // is this a class name? - format name\n{
-                sb.Append(@"{");
-                sb.AppendFormat("\n");
+                CrestronConsole.PrintLine("class {0}", type.FullName);
+                CrestronConsole.PrintLine(@"{");
 				
 				// Do properties of class first - properties -> fields -> constructors -> methods
-				foreach (PropertyInfo property in type.GetProperties())
+                foreach (PropertyInfo property in type.GetProperties())
                 {
-                    CrestronConsole.PrintLine("\t{0} {1}; \t //{2},{3}\n", property.PropertyType.Name,
+                    CrestronConsole.PrintLine("\t{0} {1}; \t //{2},{3}", property.PropertyType.Name,
                                             property.Name,
                                             property.CanRead.ToString(),
                                             property.CanWrite.ToString());			// e.g: int i; // read, write
                 }
                 foreach (FieldInfo field in type.GetFields())
                 {
-                    CrestronConsole.PrintLine("\t{0} {1};\n", field.FieldType.Name,
+                    CrestronConsole.PrintLine("\t{0} {1};", field.FieldType.Name,
                                             field.Name);
                 }
 
+                CrestronConsole.PrintLine("");
                 foreach (ConstructorInfo constructor in type.GetConstructors())
                 {
+                    bool anyParameters;
+
                     if (sb.Length >0)
                         sb.Remove(0, sb.Length);
 
                     sb.AppendFormat("\t{0} (", constructor.Name);
 					// CrestronConsole.Print("{0} (", constructor.Name);
+                    anyParameters = false;
                     foreach (ParameterInfo parameter in constructor.GetParameters())
                     {
-                        sb.AppendFormat("{0} {1}, ", parameter.ParameterType, parameter.Name);						
+                        sb.AppendFormat("{0} {1}, ", parameter.ParameterType, parameter.Name);
+                        anyParameters = true;
                     }
                     // Trim the ", " off the end if last paramerer
-                    if (sb.Length > 1)
+                    if (anyParameters && (sb.Length > 1))
                     {
                         sb.Remove(sb.Length - 2, 2);
                     }
-                    sb.AppendFormat(")\n\t");
-                    sb.Append(@"{");
-                    sb.AppendFormat("\n\t");
-                    sb.Append(@"}");
-                    sb.AppendFormat("\n");
+                    sb.AppendFormat(")");
+                    sb.Append(@"{}");
                     CrestronConsole.PrintLine(sb.ToString());
-
-                    if (sb.Length > 0)
-                        sb.Remove(0, sb.Length);
                 }
 
-               foreach (MethodInfo method in type.GetMethods())
+                foreach (MethodInfo method in type.GetMethods())
                 {
+                    bool anyParameters;
+
                     if (sb.Length > 0)
                         sb.Remove(0, sb.Length);
 
                     sb.AppendFormat("\t{0} {1} (", method.ReturnType.Name, method.Name);
+
+                    anyParameters = false;
                     foreach (ParameterInfo parameter in method.GetParameters())
                     {
-                        sb.AppendFormat("{0} {1}, ", parameter.ParameterType, parameter.Name);						
+                        sb.AppendFormat("{0} {1}, ", parameter.ParameterType, parameter.Name);
+                        anyParameters = true;
                     }
-					// Trim the ", " off the end if last paramerer
-					sb.Remove(sb.Length - 2, 2);
-                    sb.AppendFormat(")\n\t");
-                    sb.Append(@"{");
-                    sb.AppendFormat("\n\t");
-                    sb.Append(@"}");
-                    sb.AppendFormat("\n");
+                    // Trim the ", " off the end if last paramerer
+                    if (anyParameters && (sb.Length > 1))
+                    {
+                        sb.Remove(sb.Length - 2, 2);
+                    }
+                    sb.AppendFormat(")");
+                    sb.Append(@"{}");
                     CrestronConsole.PrintLine(sb.ToString());
-
-                    if (sb.Length > 0)
-                        sb.Remove(0, sb.Length);
                 }
                CrestronConsole.PrintLine(@"}");  // end of class definition
 
