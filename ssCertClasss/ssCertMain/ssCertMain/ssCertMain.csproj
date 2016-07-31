@@ -86,14 +86,12 @@
   <ItemGroup>
     <Compile Include="ControlSystem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="IR\AppleTV.ir" />
     <None Include="Properties\ControlSystem.cfg" />
     <None Include="VTP\Xpnl.sgd" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="VTP\Xpnl.c3p" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="IR\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CompactFramework.CSharp.targets" />
   <PropertyGroup>
@@ -101,6 +99,18 @@
   </PropertyGroup>
   <ProjectExtensions>
     <VisualStudio>
+      <FlavorProperties GUID="{0B4745B0-194B-4BB6-8E21-E9057CA92230}">
+        <ProgramIdTag>ssCertMain</ProgramIdTag>
+        <SystemName>ssCertMain</SystemName>
+        <Programmer />
+        <ArchiveFilename>C:\Users\paul\Documents\GitHub\SIMPLSharp\ssCertClasss\ssCertMain\ssCertMain\bin\Debug\ssCertMain.cpz</ArchiveFilename>
+        <MinFirmwareVersion>1.009.0029</MinFirmwareVersion>
+        <CompiledOn>7/31/2016 2:01:20 PM</CompiledOn>
+        <AdditionalInfo />
+        <EmbedSourceArchive>False</EmbedSourceArchive>
+        <CopyTo />
+        <OriginalReferenceSources />
+      </FlavorProperties>
     </VisualStudio>
   </ProjectExtensions>
 </Project>

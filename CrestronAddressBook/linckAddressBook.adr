@@ -1,0 +1,15 @@
+[Entries]
+linckPro3Lake=tcp 192.168.1.240
+linckCP3Lake=tcp 192.168.1.242
+ssCertClass=tcp 172.22.0.1
+linckPro3Atlanta=tcp 172.22.0.1
+
+[Settings]
+DefaultEntry=
+
+[Comments]
+linckPro3Lake=
+linckCP3Lake=
+ssCertClass=
+linckPro3Atlanta=
+
