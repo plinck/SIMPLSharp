@@ -87,4 +87,20 @@
   <PropertyGroup>
     <PostBuildEvent>rem S# Pro preparation will execute after these operations</PostBuildEvent>
   </PropertyGroup>
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{0B4745B0-194B-4BB6-8E21-E9057CA92230}">
+        <ProgramIdTag>ssCertDay3</ProgramIdTag>
+        <SystemName>ssCertDay3</SystemName>
+        <Programmer />
+        <ArchiveFilename>C:\Users\paul\Documents\GitHub\SIMPLSharp\ssCertClasss\ssCertDay3\ssCertDay3\bin\Debug\ssCertDay3.cpz</ArchiveFilename>
+        <MinFirmwareVersion>1.009.0029</MinFirmwareVersion>
+        <CompiledOn>8/1/2016 5:02:19 PM</CompiledOn>
+        <AdditionalInfo />
+        <EmbedSourceArchive>False</EmbedSourceArchive>
+        <CopyTo />
+        <OriginalReferenceSources />
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
 </Project>

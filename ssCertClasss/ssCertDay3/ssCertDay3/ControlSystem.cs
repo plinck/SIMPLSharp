@@ -39,12 +39,20 @@ namespace ssCertDay3
                 CrestronEnvironment.ProgramStatusEventHandler += new ProgramStatusEventHandler(ControlSystem_ControllerProgramEventHandler);
                 CrestronEnvironment.EthernetEventHandler += new EthernetEventHandler(ControlSystem_ControllerEthernetEventHandler);
 
+                // Injects a new console command for use in text console 
+                CrestronConsole.AddNewConsoleCommand(UpPress, "UpPress", "Presses the UP Button", ConsoleAccessLevelEnum.AccessOperator);
+                CrestronConsole.AddNewConsoleCommand(UpRelease, "UpRelease", "Releases the UP Button", ConsoleAccessLevelEnum.AccessOperator);
+                CrestronConsole.AddNewConsoleCommand(DnPress, "DnPress", "Presses the DN Button", ConsoleAccessLevelEnum.AccessOperator);
+                CrestronConsole.AddNewConsoleCommand(DnRelease, "DnRelease", "Releases the DN Button", ConsoleAccessLevelEnum.AccessOperator);
+
                 #region Keypad
                 if (this.SupportsCresnet)
                 {
                     myKeypad = new C2nCbdP(0x25, this);
 
                     myKeypad.ButtonStateChange += new ButtonEventHandler(myKeypad_ButtonStateChange);
+
+                    // Set versi port handlers for the keypad buttons
                     if (myKeypad.NumberOfVersiPorts > 0)
                     {
                         for (uint i = 1; i <= myKeypad.NumberOfVersiPorts; i++)
@@ -57,10 +65,10 @@ namespace ssCertDay3
                     if (myKeypad.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
                     {
                         ErrorLog.Error("myKeypad failed registration. Cause: {0}", myKeypad.RegistrationFailureReason);
-                        myKeypad.ButtonStateChange -= new ButtonEventHandler(myKeypad_ButtonStateChange);
                     }
                     else
                     {
+                        myKeypad.ButtonStateChange -= new ButtonEventHandler(myKeypad_ButtonStateChange);
                         myKeypad.Button[1].Name = eButtonName.Up;
                         myKeypad.Button[2].Name = eButtonName.Down;
 
@@ -73,10 +81,8 @@ namespace ssCertDay3
                 #endregion
 
                 #region IR
-                CrestronConsole.PrintLine("IR Check");
                 if (this.SupportsIROut)
                 {
-                    CrestronConsole.PrintLine("if this.SupportsIROut");
                     if (ControllerIROutputSlot.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
                         ErrorLog.Error("Error Registering IR Slot {0}", ControllerIROutputSlot.DeviceRegistrationFailureReason);
                     else
@@ -100,7 +106,6 @@ namespace ssCertDay3
                 CrestronConsole.PrintLine("IR Check");
                 if (this.SupportsVersiport)
                 {
-                    CrestronConsole.PrintLine("if this.SupportsVersiport");
                     for (uint i = 1; i <= 2; i++)
                     {
                         if (this.VersiPorts[i].Register() != eDeviceRegistrationUnRegistrationResponse.Success)
@@ -144,13 +149,20 @@ namespace ssCertDay3
 
         public override void InitializeSystem()
         {
+               // enquee someting for fun
+            rxQueue.Enqueue("Test by putting something in Queue");
+
             try
             {
-                rxHandler = new Thread(Gather, (object)null, Thread.eThreadStartOptions.Running);
+                rxHandler = new Thread(Gather, null, Thread.eThreadStartOptions.Running);
+            }
+            catch (InvalidOperationException e)
+            {
+                ErrorLog.Error("===>InvalidOperationException Creating Thread in InitializeSystem: {0}", e.Message);
             }
             catch (Exception e)
             {
-                ErrorLog.Error("Error in InitializeSystem: {0}", e.Message);
+                ErrorLog.Error("===>Exception Creating Thread in InitializeSystem: {0}", e.Message);
             }
             // This statement defines the userobject for this signal as a delegate to run the class method
             // So, when this particular signal is invoked the delegate function invokes the class method
@@ -176,15 +188,17 @@ namespace ssCertDay3
         {
             StringBuilder rxData = new StringBuilder();
             String rxGathered = String.Empty;
+            string rxTemp = ""; // When I had the var definition for string inside the try it blew up
 
             int Pos = -1;
             while (true)
             {
                 try
                 {
-                    CrestronConsole.PrintLine("Gathering");
+                    CrestronConsole.PrintLine("Gathering -  Gettng off queue");
+                    rxTemp = rxQueue.Dequeue();
+                    CrestronConsole.PrintLine("Grabbed \"{0}\" off the Queue", rxTemp);
 
-                    string rxTemp = rxQueue.Dequeue();
                     if (rxTemp == null)
                         return null;
 
@@ -324,7 +338,35 @@ namespace ssCertDay3
             }
 
         }
+    
+        #region Console Commands
+        public void UpPress(string s)
+        {
+            ButtonInterfaceController bic = new ButtonInterfaceController();
+
+            bic.PressUp_Pressed(1);
+        }
+        public void UpRelease(string s)
+        {
+            ButtonInterfaceController bic = new ButtonInterfaceController();
+
+            bic.PressUp_Released(1);
+        }
+        public void DnPress(string s)
+        {
+            ButtonInterfaceController bic = new ButtonInterfaceController();
+
+            bic.PressDn_Pressed(2);
+        }
+        public void DnRelease(string s)
+        {
+            ButtonInterfaceController bic = new ButtonInterfaceController();
+
+            bic.PressDn_Released(2);
+        }
+        #endregion
     }
+
 
     /***************************************************************
     // PllHelperClass static helper methods
@@ -350,42 +392,62 @@ namespace ssCertDay3
     {
         public void BPressUp(Button btn)
         {
-            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-            Versiport myVersiport = GV.MyControlSystem.VersiPorts[btn.Number];
-            ComPort myComPort = GV.MyControlSystem.ComPorts[btn.Number];
-
             if (btn.State == eButtonState.Pressed)
-            {
-                myVersiport.DigitalOut = true;
-                myIRPort1.Press("UP_ARROW");
-                myComPort.Send("Test transmition, please ignore");
-            }
-            if (btn.State == eButtonState.Released)
-            {
-                myVersiport.DigitalOut = false;
-                myIRPort1.Release();
-                myComPort.Send("\n");
-            }
+                PressUp_Pressed(btn.Number);
+            else if (btn.State == eButtonState.Released)
+                PressUp_Released(btn.Number);
+       }
+
+        public void PressUp_Pressed(uint i)
+        {
+            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+            Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
+            ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+
+            myVersiport.DigitalOut = true;
+            myIRPort1.Press("UP_ARROW");
+            myComPort.Send("Test transmition, please ignore");
+        }
+
+        public void PressUp_Released(uint i)
+        {
+            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+            Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
+            ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+
+            myVersiport.DigitalOut = false;
+            myIRPort1.Release();
+            myComPort.Send("\n");
         }
 
         public void BPressDn(Button btn)
         {
-            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-            Versiport myVersiport = GV.MyControlSystem.VersiPorts[btn.Number];
-            ComPort myComPort = GV.MyControlSystem.ComPorts[btn.Number];
-
             if (btn.State == eButtonState.Pressed)
-            {
-                myVersiport.DigitalOut = true;
-                myIRPort1.Press("DN_ARROW");
-                myComPort.Send("\n");
-            }
-            if (btn.State == eButtonState.Released)
-            {
-                myVersiport.DigitalOut = false;
-                myIRPort1.Release();
-            }
-        } 
+                PressDn_Pressed(btn.Number);
+            else if (btn.State == eButtonState.Released)
+                PressDn_Released(btn.Number);
+        }
+
+        public void PressDn_Pressed(uint i)
+        {
+            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+            Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
+            ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+
+            myVersiport.DigitalOut = true;
+            myIRPort1.Press("DN_ARROW");
+            myComPort.Send("\n");
+        }
+
+        public void PressDn_Released(uint i)
+        {
+            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+            Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
+            ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+
+            myVersiport.DigitalOut = false;
+            myIRPort1.Release();
+        }
     } // class
 
 }
