@@ -39,7 +39,7 @@ namespace ssCertDay3
                 CrestronEnvironment.ProgramStatusEventHandler += new ProgramStatusEventHandler(ControlSystem_ControllerProgramEventHandler);
                 CrestronEnvironment.EthernetEventHandler += new EthernetEventHandler(ControlSystem_ControllerEthernetEventHandler);
 
-                // Injects a new console command for use in text console 
+                // Injects a new console command for use in text console to test this app without a keypad
                 CrestronConsole.AddNewConsoleCommand(UpPress, "UpPress", "Presses the UP Button", ConsoleAccessLevelEnum.AccessOperator);
                 CrestronConsole.AddNewConsoleCommand(UpRelease, "UpRelease", "Releases the UP Button", ConsoleAccessLevelEnum.AccessOperator);
                 CrestronConsole.AddNewConsoleCommand(DnPress, "DnPress", "Presses the DN Button", ConsoleAccessLevelEnum.AccessOperator);
@@ -103,7 +103,6 @@ namespace ssCertDay3
                 #endregion
 
                 #region Versiports
-                CrestronConsole.PrintLine("IR Check");
                 if (this.SupportsVersiport)
                 {
                     for (uint i = 1; i <= 2; i++)
@@ -115,7 +114,11 @@ namespace ssCertDay3
                         else
                             this.VersiPorts[i].SetVersiportConfiguration(eVersiportConfiguration.DigitalOutput);
                     }
-               }
+                }
+                else
+                {
+                    ErrorLog.Notice("===> No Versiports on this control system");
+                }
                 #endregion
 
                 #region ComPorts
@@ -125,7 +128,7 @@ namespace ssCertDay3
                     {
                         this.ComPorts[i].SerialDataReceived += new ComPortDataReceivedEvent(ControlSystem_SerialDataReceived);
                         if (this.ComPorts[i].Register() != eDeviceRegistrationUnRegistrationResponse.Success)
-                            ErrorLog.Error("Error registering omport {0}", this.ComPorts[i].DeviceRegistrationFailureReason);
+                            ErrorLog.Error("Error registering comport {0}", this.ComPorts[i].DeviceRegistrationFailureReason);
                         else
                         {
                             this.ComPorts[i].SetComPortSpec(ComPort.eComBaudRates.ComspecBaudRate19200,
@@ -176,6 +179,7 @@ namespace ssCertDay3
         // Data coming in from ComPort
         void ControlSystem_SerialDataReceived(ComPort ReceivingComPort, ComPortSerialDataEventArgs args)
         {
+            CrestronConsole.PrintLine("ReceivingComPort: {0} -  Putting on queue", ReceivingComPort.ID);
             if (ReceivingComPort == ComPorts[2])
             {
                 rxQueue.Enqueue(args.SerialData);
@@ -339,30 +343,30 @@ namespace ssCertDay3
 
         }
     
-        #region Console Commands
+        #region Console Commands - for testing
         public void UpPress(string s)
         {
             ButtonInterfaceController bic = new ButtonInterfaceController();
 
-            bic.PressUp_Pressed(1);
+            bic.PressUp_Pressed(Convert.ToUInt32(s));
         }
         public void UpRelease(string s)
         {
             ButtonInterfaceController bic = new ButtonInterfaceController();
 
-            bic.PressUp_Released(1);
+            bic.PressUp_Released(Convert.ToUInt32(s));
         }
         public void DnPress(string s)
         {
             ButtonInterfaceController bic = new ButtonInterfaceController();
 
-            bic.PressDn_Pressed(2);
+            bic.PressDn_Pressed(Convert.ToUInt32(s));
         }
         public void DnRelease(string s)
         {
             ButtonInterfaceController bic = new ButtonInterfaceController();
 
-            bic.PressDn_Released(2);
+            bic.PressDn_Released(Convert.ToUInt32(s));
         }
         #endregion
     }
@@ -385,6 +389,7 @@ namespace ssCertDay3
             }
         }
     }
+
     /***************************************************************
     // ButtonInterfaceContoller - Handles Button functionality
     *****************************************************************/
@@ -400,24 +405,44 @@ namespace ssCertDay3
 
         public void PressUp_Pressed(uint i)
         {
-            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-            Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
-            ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+            if (GV.MyControlSystem.SupportsVersiport  && GV.MyControlSystem.NumberOfVersiPorts >= i)
+            {
+                Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
+                myVersiport.DigitalOut = true;
+            }
 
-            myVersiport.DigitalOut = true;
-            myIRPort1.Press("UP_ARROW");
-            myComPort.Send("Test transmition, please ignore");
+            if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
+            {
+                IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+                myIRPort1.Press("UP_ARROW");
+            }
+
+            if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
+            {
+                ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+                myComPort.Send("Test transmition, please ignore");
+            }
         }
 
         public void PressUp_Released(uint i)
         {
-            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-            Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
-            ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+            if (GV.MyControlSystem.SupportsVersiport && GV.MyControlSystem.NumberOfVersiPorts >= i)
+            {
+                Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
+                myVersiport.DigitalOut = false;
+            }
 
-            myVersiport.DigitalOut = false;
-            myIRPort1.Release();
-            myComPort.Send("\n");
+            if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
+            {
+                IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+                myIRPort1.Release();
+            }
+
+            if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
+            {
+                ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+                myComPort.Send(" ");
+            }
         }
 
         public void BPressDn(Button btn)
@@ -430,23 +455,45 @@ namespace ssCertDay3
 
         public void PressDn_Pressed(uint i)
         {
-            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-            Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
-            ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+            if (GV.MyControlSystem.SupportsVersiport && GV.MyControlSystem.NumberOfVersiPorts >= i)
+            {
+                Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
+                myVersiport.DigitalOut = true;
+            }
 
-            myVersiport.DigitalOut = true;
-            myIRPort1.Press("DN_ARROW");
-            myComPort.Send("\n");
+            if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
+            {
+                IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+                myIRPort1.Press("DN_ARROW");
+            }
+
+            if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
+            {
+                ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+                myComPort.Send("\n");
+            }
         }
 
         public void PressDn_Released(uint i)
         {
-            IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-            Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
-            ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+            if (GV.MyControlSystem.SupportsVersiport && GV.MyControlSystem.NumberOfVersiPorts >= i)
+            {
+                Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
+                myVersiport.DigitalOut = false;
+            }
 
-            myVersiport.DigitalOut = false;
-            myIRPort1.Release();
+            if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
+            {
+                IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
+                myIRPort1.Release();
+            }
+
+            if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
+            {
+                ComPort myComPort = GV.MyControlSystem.ComPorts[i];
+                // myComPort.Send("\n");
+            }
+
         }
     } // class
 
