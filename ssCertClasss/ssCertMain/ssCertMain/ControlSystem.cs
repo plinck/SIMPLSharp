@@ -503,7 +503,6 @@ namespace ssCertMain
             catch (Exception e)
             {
                 CrestronConsole.PrintLine("Exception {in PageHTTP: {0}", e);
-                throw;
             }
             finally
             {
