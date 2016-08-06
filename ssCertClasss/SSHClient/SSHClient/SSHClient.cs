@@ -17,7 +17,7 @@ namespace SSHClient
 
         /// <summary>
         /// SIMPL+ can only execute the default constructor. If you have variables that require initialization, please
-        /// use an Initialize method
+        /// use an Initialize method.  Note: invoke starts thread compatible with simpl+
         /// </summary>
         public SSHClientDevice()
         {

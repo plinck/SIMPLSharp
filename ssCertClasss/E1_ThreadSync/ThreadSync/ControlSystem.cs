@@ -12,23 +12,28 @@ using Crestron.SimplSharpPro.DeviceSupport;         	            // For Generic 
 
 namespace ThreadSync
 {
-    public class MutexParameters
-    {
-        public int ThreadNumber = 0;
-        public int Timeout = 0;
-        public MutexParameters(int threadNumber, int timeout)
-        {
-            ThreadNumber = threadNumber;
-            Timeout = timeout;
-        }
-    }
-
     public class ControlSystem : CrestronControlSystem
     {
         private Thread[] myThread = new Thread[3];
         private CEvent myEvent;
         private CCriticalSection myCS = new CCriticalSection();
         private CMutex myMutex = new CMutex();
+        
+        /// Constructor of the Control System Class. 
+        public ControlSystem()
+            : base()
+        {
+            Thread.MaxNumberOfUserThreads = 20;
+            CrestronConsole.AddNewConsoleCommand(TestEventCmd, "testevent", "testevent", ConsoleAccessLevelEnum.AccessOperator);
+            CrestronConsole.AddNewConsoleCommand(TestCSCmd, "TestCS", "TestCS", ConsoleAccessLevelEnum.AccessOperator);
+            CrestronConsole.AddNewConsoleCommand(TestCMCmd, "TestCM", "TestCM", ConsoleAccessLevelEnum.AccessOperator);
+        }
+
+        // InitializeSystem
+        public override void InitializeSystem()
+        {
+            // This should always return   
+        }
 
         #region Event Methods
         private void testEventCore(int s)
@@ -228,34 +233,22 @@ namespace ThreadSync
             myThread[1] = null;
             myThread[2] = null;
         }
+    }
 
-
-        /// <summary>
-        /// Constructor of the Control System Class. Make sure the constructor always exists.
-        /// If it doesn't exit, the code will not run on your 3-Series processor.
-        /// </summary>
-        public ControlSystem()
-            : base()
+    
+    #region Mutex
+    // ****************************************************
+    // Class MutexParameters
+    // ****************************************************
+    public class MutexParameters
+    {
+        public int ThreadNumber = 0;
+        public int Timeout = 0;
+        public MutexParameters(int threadNumber, int timeout)
         {
-
-            // Set the number of threads which you want to use in your program - At this point the threads cannot be created but we should
-            // define the max number of threads which we will use in the system.
-            // the right number depends on your project; do not make this number unnecessarily large
-            Thread.MaxNumberOfUserThreads = 20;
-            CrestronConsole.AddNewConsoleCommand(TestEventCmd, "testevent", "testevent", ConsoleAccessLevelEnum.AccessOperator);
-            CrestronConsole.AddNewConsoleCommand(TestCSCmd, "TestCS", "TestCS", ConsoleAccessLevelEnum.AccessOperator);
-            CrestronConsole.AddNewConsoleCommand(TestCMCmd, "TestCM", "TestCM", ConsoleAccessLevelEnum.AccessOperator);
-        }
-
-        /// <summary>
-        /// Overridden function... Invoked before any traffic starts flowing back and forth between the devices and the 
-        /// user program. 
-        /// This is used to start all the user threads and create all events / mutexes etc.
-        /// This function should exit ... If this function does not exit then the program will not start
-        /// </summary>
-        public override void InitializeSystem()
-        {
-            // This should always return   
+            ThreadNumber = threadNumber;
+            Timeout = timeout;
         }
     }
+    #endregion
 }
