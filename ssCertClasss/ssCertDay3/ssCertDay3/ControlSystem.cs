@@ -8,6 +8,7 @@ using Crestron.SimplSharpPro.CrestronThread;        	// For Threading
 using Crestron.SimplSharpPro.Diagnostics;		    	// For System Monitor Access
 using Crestron.SimplSharpPro.DeviceSupport;         	// For Generic Device Support
 using Crestron.SimplSharpPro.Keypads;
+using Crestron.SimplSharpPro.AudioDistribution;
 
 namespace ssCertDay3
 {
@@ -24,6 +25,7 @@ namespace ssCertDay3
         private IROutputPort myIRPort1;
         private CrestronQueue<string> rxQueue = new CrestronQueue<string>();
         private Thread rxHandler;   // thread for com port 
+        private Swamp24x8 mySWAMP;
 
         public ControlSystem()
             : base()
@@ -40,10 +42,7 @@ namespace ssCertDay3
                 CrestronEnvironment.EthernetEventHandler += new EthernetEventHandler(ControlSystem_ControllerEthernetEventHandler);
 
                 // Injects a new console command for use in text console to test this app without a keypad
-                CrestronConsole.AddNewConsoleCommand(UpPress, "UpPress", "Presses the UP Button", ConsoleAccessLevelEnum.AccessOperator);
-                CrestronConsole.AddNewConsoleCommand(UpRelease, "UpRelease", "Releases the UP Button", ConsoleAccessLevelEnum.AccessOperator);
-                CrestronConsole.AddNewConsoleCommand(DnPress, "DnPress", "Presses the DN Button", ConsoleAccessLevelEnum.AccessOperator);
-                CrestronConsole.AddNewConsoleCommand(DnRelease, "DnRelease", "Releases the DN Button", ConsoleAccessLevelEnum.AccessOperator);
+                CustomConsoleCommands.AddCustomConsoleCommands();
 
                 #region Keypad
                 if (this.SupportsCresnet)
@@ -152,9 +151,6 @@ namespace ssCertDay3
 
         public override void InitializeSystem()
         {
-               // enquee someting for fun
-            rxQueue.Enqueue("Test by putting something in Queue");
-
             try
             {
                 rxHandler = new Thread(Gather, null, Thread.eThreadStartOptions.Running);
@@ -199,9 +195,7 @@ namespace ssCertDay3
             {
                 try
                 {
-                    CrestronConsole.PrintLine("Gathering -  Gettng off queue");
                     rxTemp = rxQueue.Dequeue();
-                    CrestronConsole.PrintLine("Grabbed \"{0}\" off the Queue", rxTemp);
 
                     if (rxTemp == null)
                         return null;
@@ -212,7 +206,6 @@ namespace ssCertDay3
                     if (Pos >= 0)
                     {
                         rxGathered.Substring(0, Pos +1);
-                        CrestronConsole.PrintLine("Gather: {0}", rxGathered);
                         rxData.Remove(0, Pos +1);
                     }
                 }
@@ -344,37 +337,51 @@ namespace ssCertDay3
         }
     
         #region Console Commands - for testing
-        public void UpPress(string s)
+        // ***************************************************************
+        // CustomConsoleCommands static class to add console commands
+        // ******************************************************************
+        static class CustomConsoleCommands
         {
-            ButtonInterfaceController bic = new ButtonInterfaceController();
+            static public void AddCustomConsoleCommands()
+            {
+                CrestronConsole.AddNewConsoleCommand(UpPress, "UpPress", "Presses the UP Button", ConsoleAccessLevelEnum.AccessOperator);
+                CrestronConsole.AddNewConsoleCommand(UpRelease, "UpRelease", "Releases the UP Button", ConsoleAccessLevelEnum.AccessOperator);
+                CrestronConsole.AddNewConsoleCommand(DnPress, "DnPress", "Presses the DN Button", ConsoleAccessLevelEnum.AccessOperator);
+                CrestronConsole.AddNewConsoleCommand(DnRelease, "DnRelease", "Releases the DN Button", ConsoleAccessLevelEnum.AccessOperator);
+            }
 
-            bic.PressUp_Pressed(Convert.ToUInt32(s));
-        }
-        public void UpRelease(string s)
-        {
-            ButtonInterfaceController bic = new ButtonInterfaceController();
+            static public void UpPress(string s)
+            {
+                ButtonInterfaceController bic = new ButtonInterfaceController();
 
-            bic.PressUp_Released(Convert.ToUInt32(s));
-        }
-        public void DnPress(string s)
-        {
-            ButtonInterfaceController bic = new ButtonInterfaceController();
+                bic.PressUp_Pressed(Convert.ToUInt32(s));
+            }
+            static public void UpRelease(string s)
+            {
+                ButtonInterfaceController bic = new ButtonInterfaceController();
 
-            bic.PressDn_Pressed(Convert.ToUInt32(s));
-        }
-        public void DnRelease(string s)
-        {
-            ButtonInterfaceController bic = new ButtonInterfaceController();
+                bic.PressUp_Released(Convert.ToUInt32(s));
+            }
+            static public void DnPress(string s)
+            {
+                ButtonInterfaceController bic = new ButtonInterfaceController();
 
-            bic.PressDn_Released(Convert.ToUInt32(s));
+                bic.PressDn_Pressed(Convert.ToUInt32(s));
+            }
+            static public void DnRelease(string s)
+            {
+                ButtonInterfaceController bic = new ButtonInterfaceController();
+
+                bic.PressDn_Released(Convert.ToUInt32(s));
+            }
         }
         #endregion
     }
 
 
-    /***************************************************************
+    // ***************************************************************
     // PllHelperClass static helper methods
-    *****************************************************************/
+    // ******************************************************************
     static class PllHelperClass
     {
         public static void DisplayCresnetDevices()
@@ -390,9 +397,9 @@ namespace ssCertDay3
         }
     }
 
-    /***************************************************************
+    // ***************************************************************
     // ButtonInterfaceContoller - Handles Button functionality
-    *****************************************************************/
+    // ***************************************************************
     class ButtonInterfaceController
     {
         public void BPressUp(Button btn)

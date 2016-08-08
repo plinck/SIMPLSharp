@@ -295,9 +295,6 @@ namespace ssCertMain
         {
             var sig = args.Sig;
             var uo = sig.UserObject;
-
-            CrestronConsole.PrintLine("Event sig: {0}, Type: {1}", sig.Number, sig.GetType());
-
         }
 
         // This is the console command injected into shell - its like a deletage strongly typed in crestron

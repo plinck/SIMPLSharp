@@ -46,6 +46,10 @@
     <GenerateSerializationAssemblies>off</GenerateSerializationAssemblies>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Crestron.SimplSharpPro.AudioDistribution, Version=1.0.0.0, Culture=neutral, PublicKeyToken=1099c178b3b54c3b, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\ProgramData\Crestron\SDK\SSPDevices\Crestron.SimplSharpPro.AudioDistribution.dll</HintPath>
+    </Reference>
     <Reference Include="Crestron.SimplSharpPro.DeviceSupport, Version=1.0.0.0, Culture=neutral, PublicKeyToken=1099c178b3b54c3b, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\..\..\..\ProgramData\Crestron\SDK\SSPDevices\Crestron.SimplSharpPro.DeviceSupport.dll</HintPath>
@@ -95,7 +99,7 @@
         <Programmer />
         <ArchiveFilename>C:\Users\paul\Documents\GitHub\SIMPLSharp\ssCertClasss\ssCertDay3\ssCertDay3\bin\Debug\ssCertDay3.cpz</ArchiveFilename>
         <MinFirmwareVersion>1.009.0029</MinFirmwareVersion>
-        <CompiledOn>8/2/2016 4:55:18 PM</CompiledOn>
+        <CompiledOn>8/8/2016 3:36:26 PM</CompiledOn>
         <AdditionalInfo />
         <EmbedSourceArchive>False</EmbedSourceArchive>
         <CopyTo />
