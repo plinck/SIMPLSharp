@@ -21,11 +21,12 @@ namespace ssCertDay3
     {
         // Define local variables ...
         private C2nCbdP myKeypad;
-        private ButtonInterfaceController actionBIC;
-        private IROutputPort myIRPort1;
         private CrestronQueue<string> rxQueue = new CrestronQueue<string>();
         private Thread rxHandler;   // thread for com port 
-        private Swamp24x8 mySWAMP;
+        private Swamp24x8 mySwamp;
+
+        private ButtonInterfaceController myKPController;       // Handles all requests from Keypads
+        private SwampController mySwampController;              // Handles all requests from SWAMP
 
         public ControlSystem()
             : base()
@@ -48,7 +49,6 @@ namespace ssCertDay3
                 if (this.SupportsCresnet)
                 {
                     myKeypad = new C2nCbdP(0x25, this);
-
                     myKeypad.ButtonStateChange += new ButtonEventHandler(myKeypad_ButtonStateChange);
 
                     // Set versi port handlers for the keypad buttons
@@ -70,12 +70,10 @@ namespace ssCertDay3
                         myKeypad.ButtonStateChange -= new ButtonEventHandler(myKeypad_ButtonStateChange);
                         myKeypad.Button[1].Name = eButtonName.Up;
                         myKeypad.Button[2].Name = eButtonName.Down;
-
                     }
 
                     // List all the cresnet devices - note: Query might not work for duplicate devices
-                    PllHelperClass.DisplayCresnetDevices();
-
+                    CSHelperClass.DisplayCresnetDevices();
                 }
                 #endregion
 
@@ -86,17 +84,8 @@ namespace ssCertDay3
                         ErrorLog.Error("Error Registering IR Slot {0}", ControllerIROutputSlot.DeviceRegistrationFailureReason);
                     else
                     {
-                        // IROutputPorts[1].LoadIRDriver(String.Format(@"{0}\IR\AppleTV.ir", Directory.GetApplicationDirectory()));
-                        IROutputPorts[1].LoadIRDriver(@"\NVRAM\AppleTV.ir");
-                        foreach (String s in IROutputPorts[1].AvailableStandardIRCmds())
-                        {
-                            CrestronConsole.PrintLine("AppleTV Std: {0}", s);
-                        }
-                        foreach (String s in IROutputPorts[1].AvailableIRCmds())
-                        {
-                            CrestronConsole.PrintLine("AppleTV Available: {0}", s);
-                        }
-                        myIRPort1 = IROutputPorts[1];
+                        CSHelperClass.LoadIRDrivers(IROutputPorts);
+                        CSHelperClass.PrintIRDeviceFunctions(IROutputPorts[1]);
                     }
                 }
                 #endregion
@@ -142,6 +131,14 @@ namespace ssCertDay3
                     }
                 }
                 #endregion
+
+                #region SWAMP
+                if (this.SupportsEthernet)
+                {
+                    mySwamp = new Swamp24x8(0x99, this);
+                    mySwampController = new SwampController(mySwamp);
+                }
+                #endregion
             }
             catch (Exception e)
             {
@@ -149,6 +146,9 @@ namespace ssCertDay3
             }
         }
 
+        // *************************************************************************************************
+        // InititalizeSystem - get in and out quickly - system startup stuff
+        // *************************************************************************************************
         public override void InitializeSystem()
         {
             try
@@ -163,27 +163,18 @@ namespace ssCertDay3
             {
                 ErrorLog.Error("===>Exception Creating Thread in InitializeSystem: {0}", e.Message);
             }
+
             // This statement defines the userobject for this signal as a delegate to run the class method
             // So, when this particular signal is invoked the delegate function invokes the class method
             // I have demonstrated 3 different ways to assign the action with and without parms as well
             // as lambda notation vs simplified - need to test to see whagt does and does not work
-            actionBIC = new ButtonInterfaceController();
-            myKeypad.Button[1].UserObject = new System.Action<Button>((p) => actionBIC.BPressUp(p));
-            myKeypad.Button[2].UserObject = new System.Action<Button>((p) => actionBIC.BPressDn(p));
+            myKPController = new ButtonInterfaceController(myKeypad);
         }
 
-        // Data coming in from ComPort
-        void ControlSystem_SerialDataReceived(ComPort ReceivingComPort, ComPortSerialDataEventArgs args)
-        {
-            CrestronConsole.PrintLine("ReceivingComPort: {0} -  Putting on queue", ReceivingComPort.ID);
-            if (ReceivingComPort == ComPorts[2])
-            {
-                rxQueue.Enqueue(args.SerialData);
-            }
-        }
-
+        // *************************************************************************************************
         // The thread callback function.  Sit and wait for work.  release thread on program stopping
-        // by placing a null string at the end of the queue
+        // by placing a null string at the end of the queue (happens in program event handler)
+        // *************************************************************************************************
         object Gather(object o)
         {
             StringBuilder rxData = new StringBuilder();
@@ -205,8 +196,8 @@ namespace ssCertDay3
                     Pos = rxGathered.IndexOf("\n");
                     if (Pos >= 0)
                     {
-                        rxGathered.Substring(0, Pos +1);
-                        rxData.Remove(0, Pos +1);
+                        rxGathered.Substring(0, Pos + 1);
+                        rxData.Remove(0, Pos + 1);
                     }
                 }
                 catch (System.ArgumentOutOfRangeException e)
@@ -220,16 +211,7 @@ namespace ssCertDay3
             }
         }
 
-        void ControlSystem_VersiportChange(Versiport port, VersiportEventArgs args)
-        {
-            if (port == myKeypad.VersiPorts[1])
-                CrestronConsole.PrintLine("Port 1: {0}", port.DigitalIn);
-            if (port == myKeypad.VersiPorts[2])
-                CrestronConsole.PrintLine("Port 2: {0}", port.DigitalIn);
-
-        }
-
-        // Keypad event handling
+        #region Event Handlers
         void myKeypad_ButtonStateChange(GenericBase device, ButtonEventArgs args)
         {
             var btn = args.Button;
@@ -251,37 +233,25 @@ namespace ssCertDay3
             ButtonInterfaceController myBIC = new ButtonInterfaceController();
             #endregion
 
-            #region "Hardcoded* button invocation
-            /*
-            // Call direction until UserObject stuff working
-            if (btn.State == eButtonState.Pressed)
-            {
-                this.VersiPorts[args.Button.Number].DigitalOut = true;
-                switch (btn.Number)
-                {
-                    case 1:
-                        myIRPort1.Press("UP_ARROW");
-                        ComPorts[1].Send("Test transmition, please ignore");
-                        break;
-                    case 2:
-                        myIRPort1.Press("DN_ARROW");
-                        ComPorts[1].Send("\n");
-                        break;
-                    default:
-                        CrestronConsole.PrintLine("Key Not Programmed: {0}", args.Button.Number);
-                        break;
-                }
-            }
-
-            if (args.Button.State == eButtonState.Released)
-            {
-                myIRPort1.Release();
-                this.VersiPorts[args.Button.Number].DigitalOut = false;
-            }
-            */
-            #endregion
         } // Event Handler
+        // *************************************************************************************************
+        // Comport Event Handler - NOTE: for test system TX on COM1 is tied to RX COM2 and vice versa
+        // *************************************************************************************************
+        void ControlSystem_SerialDataReceived(ComPort ReceivingComPort, ComPortSerialDataEventArgs args)
+        {
+            if (ReceivingComPort == ComPorts[2])
+            {
+                rxQueue.Enqueue(args.SerialData);       // Put all incoming data on the queue
+            }
+        }
+        void ControlSystem_VersiportChange(Versiport port, VersiportEventArgs args)
+        {
+            if (port == myKeypad.VersiPorts[1])
+                CrestronConsole.PrintLine("Port 1: {0}", port.DigitalIn);
+            if (port == myKeypad.VersiPorts[2])
+                CrestronConsole.PrintLine("Port 2: {0}", port.DigitalIn);
 
+        }
         void ControlSystem_ControllerEthernetEventHandler(EthernetEventArgs ethernetEventArgs)
         {
             switch (ethernetEventArgs.EthernetEventType)
@@ -335,56 +305,58 @@ namespace ssCertDay3
             }
 
         }
-    
-        #region Console Commands - for testing
-        // ***************************************************************
-        // CustomConsoleCommands static class to add console commands
-        // ******************************************************************
-        static class CustomConsoleCommands
-        {
-            static public void AddCustomConsoleCommands()
-            {
-                CrestronConsole.AddNewConsoleCommand(UpPress, "UpPress", "Presses the UP Button", ConsoleAccessLevelEnum.AccessOperator);
-                CrestronConsole.AddNewConsoleCommand(UpRelease, "UpRelease", "Releases the UP Button", ConsoleAccessLevelEnum.AccessOperator);
-                CrestronConsole.AddNewConsoleCommand(DnPress, "DnPress", "Presses the DN Button", ConsoleAccessLevelEnum.AccessOperator);
-                CrestronConsole.AddNewConsoleCommand(DnRelease, "DnRelease", "Releases the DN Button", ConsoleAccessLevelEnum.AccessOperator);
-            }
-
-            static public void UpPress(string s)
-            {
-                ButtonInterfaceController bic = new ButtonInterfaceController();
-
-                bic.PressUp_Pressed(Convert.ToUInt32(s));
-            }
-            static public void UpRelease(string s)
-            {
-                ButtonInterfaceController bic = new ButtonInterfaceController();
-
-                bic.PressUp_Released(Convert.ToUInt32(s));
-            }
-            static public void DnPress(string s)
-            {
-                ButtonInterfaceController bic = new ButtonInterfaceController();
-
-                bic.PressDn_Pressed(Convert.ToUInt32(s));
-            }
-            static public void DnRelease(string s)
-            {
-                ButtonInterfaceController bic = new ButtonInterfaceController();
-
-                bic.PressDn_Released(Convert.ToUInt32(s));
-            }
-        }
         #endregion
-    }
 
+    } // ControlSystem Class
 
+    #region Console Commands - for testing
     // ***************************************************************
-    // PllHelperClass static helper methods
+    // CustomConsoleCommands static class to add console commands
     // ******************************************************************
-    static class PllHelperClass
+    static public class CustomConsoleCommands
     {
-        public static void DisplayCresnetDevices()
+        static public void AddCustomConsoleCommands()
+        {
+            CrestronConsole.AddNewConsoleCommand(UpPress, "UpPress", "Presses the UP Button", ConsoleAccessLevelEnum.AccessOperator);
+            CrestronConsole.AddNewConsoleCommand(UpRelease, "UpRelease", "Releases the UP Button", ConsoleAccessLevelEnum.AccessOperator);
+            CrestronConsole.AddNewConsoleCommand(DnPress, "DnPress", "Presses the DN Button", ConsoleAccessLevelEnum.AccessOperator);
+            CrestronConsole.AddNewConsoleCommand(DnRelease, "DnRelease", "Releases the DN Button", ConsoleAccessLevelEnum.AccessOperator);
+        }
+
+        static public void UpPress(string s)
+        {
+            ButtonInterfaceController bic = new ButtonInterfaceController();
+
+            bic.PressUp_Pressed(Convert.ToUInt32(s));
+        }
+        static public void UpRelease(string s)
+        {
+            ButtonInterfaceController bic = new ButtonInterfaceController();
+
+            bic.PressUp_Released(Convert.ToUInt32(s));
+        }
+        static public void DnPress(string s)
+        {
+            ButtonInterfaceController bic = new ButtonInterfaceController();
+
+            bic.PressDn_Pressed(Convert.ToUInt32(s));
+        }
+        static public void DnRelease(string s)
+        {
+            ButtonInterfaceController bic = new ButtonInterfaceController();
+
+            bic.PressDn_Released(Convert.ToUInt32(s));
+        }
+    }
+    #endregion
+
+    #region CSHelperClass - A bunch of helper methods
+    // **********************************************************************
+    // CSHelperClass - This class has helper methods to clean up main code
+    // **********************************************************************
+    static public class CSHelperClass
+    {
+        static public void DisplayCresnetDevices()
         {
             var returnVar = CrestronCresnetHelper.Query();
             if (returnVar == CrestronCresnetHelper.eCresnetDiscoveryReturnValues.Success)
@@ -395,13 +367,44 @@ namespace ssCertDay3
                 }
             }
         }
-    }
 
+        static public void LoadIRDrivers(CrestronCollection<IROutputPort> myIRPorts)
+        {
+
+            // IROutputPorts[1].LoadIRDriver(String.Format(@"{0}\IR\AppleTV.ir", Directory.GetApplicationDirectory()));
+            myIRPorts[1].LoadIRDriver(@"\NVRAM\AppleTV.ir");
+        }
+
+        static public void PrintIRDeviceFunctions(IROutputPort myIR)
+        {
+            foreach (String s in myIR.AvailableStandardIRCmds())
+            {
+                CrestronConsole.PrintLine("AppleTV Std: {0}", s);
+            }
+            foreach (String s in myIR.AvailableIRCmds())
+            {
+                CrestronConsole.PrintLine("AppleTV Available: {0}", s);
+            }
+        }
+
+    }
+    #endregion
+
+    #region ButtonInterface Controller - handles button presses
     // ***************************************************************
     // ButtonInterfaceContoller - Handles Button functionality
     // ***************************************************************
     class ButtonInterfaceController
     {
+        public ButtonInterfaceController() { }
+
+        // Setup all the joins for this Keypad
+        public ButtonInterfaceController(C2nCbdP myKP)  // overloaded constructor
+        {
+            myKP.Button[1].UserObject = new System.Action<Button>((p) => this.BPressUp(p));
+            myKP.Button[2].UserObject = new System.Action<Button>((p) => this.BPressDn(p));
+        }
+
         public void BPressUp(Button btn)
         {
             if (btn.State == eButtonState.Pressed)
@@ -420,8 +423,8 @@ namespace ssCertDay3
 
             if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
             {
-                IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-                myIRPort1.Press("UP_ARROW");
+                IROutputPort myIRPort = GV.MyControlSystem.IROutputPorts[1];
+                myIRPort.Press("UP_ARROW");
             }
 
             if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
@@ -441,8 +444,8 @@ namespace ssCertDay3
 
             if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
             {
-                IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-                myIRPort1.Release();
+                IROutputPort myIRPort = GV.MyControlSystem.IROutputPorts[1];
+                myIRPort.Release();
             }
 
             if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
@@ -470,8 +473,8 @@ namespace ssCertDay3
 
             if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
             {
-                IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-                myIRPort1.Press("DN_ARROW");
+                IROutputPort myIRPort = GV.MyControlSystem.IROutputPorts[1];
+                myIRPort.Press("DN_ARROW");
             }
 
             if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
@@ -491,8 +494,8 @@ namespace ssCertDay3
 
             if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
             {
-                IROutputPort myIRPort1 = GV.MyControlSystem.IROutputPorts[1];
-                myIRPort1.Release();
+                IROutputPort myIRPort = GV.MyControlSystem.IROutputPorts[1];
+                myIRPort.Release();
             }
 
             if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
@@ -503,5 +506,41 @@ namespace ssCertDay3
 
         }
     } // class
+    #endregion
 
+    #region SwampController
+    class SwampController
+    {
+        private Swamp24x8 mySwamp;
+
+        public SwampController() { }
+
+        public SwampController(Swamp24x8 pSwamp)
+        {
+            mySwamp = pSwamp;               // Save crestron swamp in my wrapper object
+
+            mySwamp.SourcesChangeEvent += new SourceEventHandler(mySwamp_SourcesChangeEvent);
+
+            // Register and if fails, get rid of event handler
+            if (mySwamp.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
+            {
+                ErrorLog.Error("mySwamp failed registration. Cause: {0}", mySwamp.RegistrationFailureReason);
+            }
+            else
+            {
+                mySwamp.SourcesChangeEvent -= new SourceEventHandler(mySwamp_SourcesChangeEvent);
+            }
+        }
+
+        void mySwamp_SourcesChangeEvent(object sender, SourceEventArgs args)
+        {
+            //
+        }
+
+        public void SetSourceForRoom(ushort zoneNbr, UShortInputSig sourceNbr)
+        {
+            mySwamp.Zones[zoneNbr].Source = sourceNbr;
+        }
+    }
+    #endregion
 }
