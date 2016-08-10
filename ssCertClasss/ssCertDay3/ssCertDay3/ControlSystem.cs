@@ -8,7 +8,7 @@ using Crestron.SimplSharpPro.CrestronThread;        	// For Threading
 using Crestron.SimplSharpPro.Diagnostics;		    	// For System Monitor Access
 using Crestron.SimplSharpPro.DeviceSupport;         	// For Generic Device Support
 using Crestron.SimplSharpPro.Keypads;
-using Crestron.SimplSharpPro.AudioDistribution;
+using Crestron.SimplSharpPro.AudioDistribution;         // Swamp
 
 namespace ssCertDay3
 {
@@ -26,7 +26,7 @@ namespace ssCertDay3
         private Swamp24x8 mySwamp;
 
         private ButtonInterfaceController myKPController;       // Handles all requests from Keypads
-        private SwampController mySwampController;              // Handles all requests from SWAMP
+        public SwampController mySwampController;              // Handles all requests from SWAMP
 
         public ControlSystem()
             : base()
@@ -72,8 +72,6 @@ namespace ssCertDay3
                         myKeypad.Button[2].Name = eButtonName.Down;
                     }
 
-                    // List all the cresnet devices - note: Query might not work for duplicate devices
-                    CSHelperClass.DisplayCresnetDevices();
                 }
                 #endregion
 
@@ -85,7 +83,6 @@ namespace ssCertDay3
                     else
                     {
                         CSHelperClass.LoadIRDrivers(IROutputPorts);
-                        CSHelperClass.PrintIRDeviceFunctions(IROutputPorts[1]);
                     }
                 }
                 #endregion
@@ -309,238 +306,4 @@ namespace ssCertDay3
 
     } // ControlSystem Class
 
-    #region Console Commands - for testing
-    // ***************************************************************
-    // CustomConsoleCommands static class to add console commands
-    // ******************************************************************
-    static public class CustomConsoleCommands
-    {
-        static public void AddCustomConsoleCommands()
-        {
-            CrestronConsole.AddNewConsoleCommand(UpPress, "UpPress", "Presses the UP Button", ConsoleAccessLevelEnum.AccessOperator);
-            CrestronConsole.AddNewConsoleCommand(UpRelease, "UpRelease", "Releases the UP Button", ConsoleAccessLevelEnum.AccessOperator);
-            CrestronConsole.AddNewConsoleCommand(DnPress, "DnPress", "Presses the DN Button", ConsoleAccessLevelEnum.AccessOperator);
-            CrestronConsole.AddNewConsoleCommand(DnRelease, "DnRelease", "Releases the DN Button", ConsoleAccessLevelEnum.AccessOperator);
-        }
-
-        static public void UpPress(string s)
-        {
-            ButtonInterfaceController bic = new ButtonInterfaceController();
-
-            bic.PressUp_Pressed(Convert.ToUInt32(s));
-        }
-        static public void UpRelease(string s)
-        {
-            ButtonInterfaceController bic = new ButtonInterfaceController();
-
-            bic.PressUp_Released(Convert.ToUInt32(s));
-        }
-        static public void DnPress(string s)
-        {
-            ButtonInterfaceController bic = new ButtonInterfaceController();
-
-            bic.PressDn_Pressed(Convert.ToUInt32(s));
-        }
-        static public void DnRelease(string s)
-        {
-            ButtonInterfaceController bic = new ButtonInterfaceController();
-
-            bic.PressDn_Released(Convert.ToUInt32(s));
-        }
-    }
-    #endregion
-
-    #region CSHelperClass - A bunch of helper methods
-    // **********************************************************************
-    // CSHelperClass - This class has helper methods to clean up main code
-    // **********************************************************************
-    static public class CSHelperClass
-    {
-        static public void DisplayCresnetDevices()
-        {
-            var returnVar = CrestronCresnetHelper.Query();
-            if (returnVar == CrestronCresnetHelper.eCresnetDiscoveryReturnValues.Success)
-            {
-                foreach (var item in CrestronCresnetHelper.DiscoveredElementsList)
-                {
-                    CrestronConsole.PrintLine("Found Item: {0}, {1}", item.CresnetId, item.DeviceModel);
-                }
-            }
-        }
-
-        static public void LoadIRDrivers(CrestronCollection<IROutputPort> myIRPorts)
-        {
-
-            // IROutputPorts[1].LoadIRDriver(String.Format(@"{0}\IR\AppleTV.ir", Directory.GetApplicationDirectory()));
-            myIRPorts[1].LoadIRDriver(@"\NVRAM\AppleTV.ir");
-        }
-
-        static public void PrintIRDeviceFunctions(IROutputPort myIR)
-        {
-            foreach (String s in myIR.AvailableStandardIRCmds())
-            {
-                CrestronConsole.PrintLine("AppleTV Std: {0}", s);
-            }
-            foreach (String s in myIR.AvailableIRCmds())
-            {
-                CrestronConsole.PrintLine("AppleTV Available: {0}", s);
-            }
-        }
-
-    }
-    #endregion
-
-    #region ButtonInterface Controller - handles button presses
-    // ***************************************************************
-    // ButtonInterfaceContoller - Handles Button functionality
-    // ***************************************************************
-    class ButtonInterfaceController
-    {
-        public ButtonInterfaceController() { }
-
-        // Setup all the joins for this Keypad
-        public ButtonInterfaceController(C2nCbdP myKP)  // overloaded constructor
-        {
-            myKP.Button[1].UserObject = new System.Action<Button>((p) => this.BPressUp(p));
-            myKP.Button[2].UserObject = new System.Action<Button>((p) => this.BPressDn(p));
-        }
-
-        public void BPressUp(Button btn)
-        {
-            if (btn.State == eButtonState.Pressed)
-                PressUp_Pressed(btn.Number);
-            else if (btn.State == eButtonState.Released)
-                PressUp_Released(btn.Number);
-       }
-
-        public void PressUp_Pressed(uint i)
-        {
-            if (GV.MyControlSystem.SupportsVersiport  && GV.MyControlSystem.NumberOfVersiPorts >= i)
-            {
-                Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
-                myVersiport.DigitalOut = true;
-            }
-
-            if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
-            {
-                IROutputPort myIRPort = GV.MyControlSystem.IROutputPorts[1];
-                myIRPort.Press("UP_ARROW");
-            }
-
-            if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
-            {
-                ComPort myComPort = GV.MyControlSystem.ComPorts[i];
-                myComPort.Send("Test transmition, please ignore");
-            }
-        }
-
-        public void PressUp_Released(uint i)
-        {
-            if (GV.MyControlSystem.SupportsVersiport && GV.MyControlSystem.NumberOfVersiPorts >= i)
-            {
-                Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
-                myVersiport.DigitalOut = false;
-            }
-
-            if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
-            {
-                IROutputPort myIRPort = GV.MyControlSystem.IROutputPorts[1];
-                myIRPort.Release();
-            }
-
-            if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
-            {
-                ComPort myComPort = GV.MyControlSystem.ComPorts[i];
-                myComPort.Send(" ");
-            }
-        }
-
-        public void BPressDn(Button btn)
-        {
-            if (btn.State == eButtonState.Pressed)
-                PressDn_Pressed(btn.Number);
-            else if (btn.State == eButtonState.Released)
-                PressDn_Released(btn.Number);
-        }
-
-        public void PressDn_Pressed(uint i)
-        {
-            if (GV.MyControlSystem.SupportsVersiport && GV.MyControlSystem.NumberOfVersiPorts >= i)
-            {
-                Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
-                myVersiport.DigitalOut = true;
-            }
-
-            if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
-            {
-                IROutputPort myIRPort = GV.MyControlSystem.IROutputPorts[1];
-                myIRPort.Press("DN_ARROW");
-            }
-
-            if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
-            {
-                ComPort myComPort = GV.MyControlSystem.ComPorts[i];
-                myComPort.Send("\n");
-            }
-        }
-
-        public void PressDn_Released(uint i)
-        {
-            if (GV.MyControlSystem.SupportsVersiport && GV.MyControlSystem.NumberOfVersiPorts >= i)
-            {
-                Versiport myVersiport = GV.MyControlSystem.VersiPorts[i];
-                myVersiport.DigitalOut = false;
-            }
-
-            if (GV.MyControlSystem.SupportsIROut && GV.MyControlSystem.NumberOfIROutputPorts >= 1)
-            {
-                IROutputPort myIRPort = GV.MyControlSystem.IROutputPorts[1];
-                myIRPort.Release();
-            }
-
-            if (GV.MyControlSystem.SupportsComPort && GV.MyControlSystem.NumberOfComPorts >= i)
-            {
-                ComPort myComPort = GV.MyControlSystem.ComPorts[i];
-                // myComPort.Send("\n");
-            }
-
-        }
-    } // class
-    #endregion
-
-    #region SwampController
-    class SwampController
-    {
-        private Swamp24x8 mySwamp;
-
-        public SwampController() { }
-
-        public SwampController(Swamp24x8 pSwamp)
-        {
-            mySwamp = pSwamp;               // Save crestron swamp in my wrapper object
-
-            mySwamp.SourcesChangeEvent += new SourceEventHandler(mySwamp_SourcesChangeEvent);
-
-            // Register and if fails, get rid of event handler
-            if (mySwamp.Register() != eDeviceRegistrationUnRegistrationResponse.Success)
-            {
-                ErrorLog.Error("mySwamp failed registration. Cause: {0}", mySwamp.RegistrationFailureReason);
-            }
-            else
-            {
-                mySwamp.SourcesChangeEvent -= new SourceEventHandler(mySwamp_SourcesChangeEvent);
-            }
-        }
-
-        void mySwamp_SourcesChangeEvent(object sender, SourceEventArgs args)
-        {
-            //
-        }
-
-        public void SetSourceForRoom(ushort zoneNbr, UShortInputSig sourceNbr)
-        {
-            mySwamp.Zones[zoneNbr].Source = sourceNbr;
-        }
-    }
-    #endregion
 }

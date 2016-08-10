@@ -80,8 +80,12 @@
     <Reference Include="System.Data" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ButtonInterfaceController.cs" />
     <Compile Include="ControlSystem.cs" />
+    <Compile Include="CSHelperClass.cs" />
+    <Compile Include="CustomConsoleCommands.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SwampController.cs" />
     <None Include="IR\AppleTV.ir">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -99,7 +103,7 @@
         <Programmer />
         <ArchiveFilename>C:\Users\paul\Documents\GitHub\SIMPLSharp\ssCertClasss\ssCertDay3\ssCertDay3\bin\Debug\ssCertDay3.cpz</ArchiveFilename>
         <MinFirmwareVersion>1.009.0029</MinFirmwareVersion>
-        <CompiledOn>8/9/2016 3:56:08 PM</CompiledOn>
+        <CompiledOn>8/10/2016 12:44:48 PM</CompiledOn>
         <AdditionalInfo />
         <EmbedSourceArchive>False</EmbedSourceArchive>
         <CopyTo />
