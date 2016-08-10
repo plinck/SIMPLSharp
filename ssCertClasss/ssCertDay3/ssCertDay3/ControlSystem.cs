@@ -23,7 +23,6 @@ namespace ssCertDay3
         private C2nCbdP myKeypad;
         private CrestronQueue<string> rxQueue = new CrestronQueue<string>();
         private Thread rxHandler;   // thread for com port 
-        private Swamp24x8 mySwamp;
 
         private ButtonInterfaceController myKPController;       // Handles all requests from Keypads
         public SwampController mySwampController;              // Handles all requests from SWAMP
@@ -132,8 +131,7 @@ namespace ssCertDay3
                 #region SWAMP
                 if (this.SupportsEthernet)
                 {
-                    mySwamp = new Swamp24x8(0x99, this);
-                    mySwampController = new SwampController(mySwamp);
+                    mySwampController = new SwampController(this);
                 }
                 #endregion
             }

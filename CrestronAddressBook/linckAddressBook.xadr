@@ -16,6 +16,7 @@ linckPro3Lake=auto 192.168.2.240
 linckCP3Lake=auto 192.168.2.243
 ssCertClass=auto 172.22.0.1
 linckPro3Atlanta=auto 172.22.0.1
+linckPro3ATL=auto 192.168.1.240
 
 [Notes]
 linckMC3ATL=
@@ -23,4 +24,5 @@ linckPro3Lake=
 linckCP3Lake=
 ssCertClass=
 linckPro3Atlanta=
+linckPro3ATL=
 

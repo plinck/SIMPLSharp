@@ -26,8 +26,9 @@ namespace ssCertDay3
             CrestronConsole.AddNewConsoleCommand(DnPress, "DnPress", "Presses the DN Button", ConsoleAccessLevelEnum.AccessOperator);
             CrestronConsole.AddNewConsoleCommand(DnRelease, "DnRelease", "Releases the DN Button", ConsoleAccessLevelEnum.AccessOperator);
             CrestronConsole.AddNewConsoleCommand(PrintCN, "PrintCN", "Prints Cresnet Devices", ConsoleAccessLevelEnum.AccessOperator);
-            CrestronConsole.AddNewConsoleCommand(PrintZ, "PrintZ", "Prints Zones for Swamp", ConsoleAccessLevelEnum.AccessOperator);
             CrestronConsole.AddNewConsoleCommand(PrintIRDeviceFunctions, "PrintIR", "Prints IR Device Functions", ConsoleAccessLevelEnum.AccessOperator);
+            CrestronConsole.AddNewConsoleCommand(SwampPZ, "SwampPZ", "Prints Zones for Swamp", ConsoleAccessLevelEnum.AccessOperator);
+            CrestronConsole.AddNewConsoleCommand(SwampCZS, "SwampCZS", "Changes source for Swamp Zone", ConsoleAccessLevelEnum.AccessOperator);
         }
 
         static public void UpPress(string s)
@@ -64,9 +65,20 @@ namespace ssCertDay3
             CSHelperClass.PrintIRDeviceFunctions(GV.MyControlSystem.IROutputPorts[1]);
         }
 
-        static public void PrintZ(string s)
+        static public void SwampPZ(string s)
         {
             GV.MyControlSystem.mySwampController.PrintAllZonesSources();
+        }
+        static public void SwampCZS(string parms)
+        {
+            ushort z = 0;
+            ushort src = 0;
+            string[] strParams = parms.Split(' ');
+
+            z = Convert.ToUInt16(strParams[0]);
+            src = Convert.ToUInt16(strParams[1]);
+
+            GV.MyControlSystem.mySwampController.SetSourceForRoom(z, src);
         }
     }
 }
