@@ -59,9 +59,9 @@ namespace ssCertDay3
             }
             finally
             {
-                if (rxThreadComHandler != null)
-                    rxThreadComHandler.Abort();
-                rxThreadComHandler = null;
+               // if (rxThreadComHandler != null)
+               //     rxThreadComHandler.Abort();
+               // rxThreadComHandler = null;
             }
 
         }
