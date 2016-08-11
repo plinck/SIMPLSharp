@@ -82,6 +82,18 @@
   </PropertyGroup>
   <ProjectExtensions>
     <VisualStudio>
+      <FlavorProperties GUID="{0B4745B0-194B-4BB6-8E21-E9057CA92230}">
+        <ProgramIdTag>ThreadSync</ProgramIdTag>
+        <SystemName>ThreadSync</SystemName>
+        <Programmer />
+        <ArchiveFilename />
+        <MinFirmwareVersion>1.009.0029</MinFirmwareVersion>
+        <CompiledOn>1/1/0001 12:00:00 AM</CompiledOn>
+        <AdditionalInfo />
+        <EmbedSourceArchive>False</EmbedSourceArchive>
+        <CopyTo />
+        <OriginalReferenceSources />
+      </FlavorProperties>
     </VisualStudio>
   </ProjectExtensions>
 </Project>
