@@ -21,11 +21,10 @@ namespace ssCertDay3
     {
         // Define local variables ...
         private C2nCbdP myKeypad;
-        private CrestronQueue<string> rxQueue = new CrestronQueue<string>();
-        private Thread rxHandler;   // thread for com port 
 
-        private ButtonInterfaceController myKPController;       // Handles all requests from Keypads
+        private ButtonInterfaceController myKPController;      // Handles all requests from Keypads
         public SwampController mySwampController;              // Handles all requests from SWAMP
+        public ComPortController myComPortController;          // Handles all COM Port Stuff
 
         public ControlSystem()
             : base()
@@ -108,23 +107,7 @@ namespace ssCertDay3
                 #region ComPorts
                 if (this.SupportsComPort)
                 {
-                    for (uint i = 1; i <= 2; i++)
-                    {
-                        this.ComPorts[i].SerialDataReceived += new ComPortDataReceivedEvent(ControlSystem_SerialDataReceived);
-                        if (this.ComPorts[i].Register() != eDeviceRegistrationUnRegistrationResponse.Success)
-                            ErrorLog.Error("Error registering comport {0}", this.ComPorts[i].DeviceRegistrationFailureReason);
-                        else
-                        {
-                            this.ComPorts[i].SetComPortSpec(ComPort.eComBaudRates.ComspecBaudRate19200,
-                                                            ComPort.eComDataBits.ComspecDataBits8,
-                                                            ComPort.eComParityType.ComspecParityNone,
-                                                            ComPort.eComStopBits.ComspecStopBits1,
-                                                            ComPort.eComProtocolType.ComspecProtocolRS232,
-                                                            ComPort.eComHardwareHandshakeType.ComspecHardwareHandshakeNone,
-                                                            ComPort.eComSoftwareHandshakeType.ComspecSoftwareHandshakeNone,
-                                                            false);
-                        }
-                    }
+                    myComPortController = new ComPortController(this);
                 }
                 #endregion
 
@@ -146,18 +129,7 @@ namespace ssCertDay3
         // *************************************************************************************************
         public override void InitializeSystem()
         {
-            try
-            {
-                rxHandler = new Thread(Gather, null, Thread.eThreadStartOptions.Running);
-            }
-            catch (InvalidOperationException e)
-            {
-                ErrorLog.Error("===>InvalidOperationException Creating Thread in InitializeSystem: {0}", e.Message);
-            }
-            catch (Exception e)
-            {
-                ErrorLog.Error("===>Exception Creating Thread in InitializeSystem: {0}", e.Message);
-            }
+            myComPortController.Initialize();
 
             // This statement defines the userobject for this signal as a delegate to run the class method
             // So, when this particular signal is invoked the delegate function invokes the class method
@@ -170,41 +142,6 @@ namespace ssCertDay3
         // The thread callback function.  Sit and wait for work.  release thread on program stopping
         // by placing a null string at the end of the queue (happens in program event handler)
         // *************************************************************************************************
-        object Gather(object o)
-        {
-            StringBuilder rxData = new StringBuilder();
-            String rxGathered = String.Empty;
-            string rxTemp = ""; // When I had the var definition for string inside the try it blew up
-
-            int Pos = -1;
-            while (true)
-            {
-                try
-                {
-                    rxTemp = rxQueue.Dequeue();
-
-                    if (rxTemp == null)
-                        return null;
-
-                    rxData.Append(rxTemp);
-                    rxGathered = rxData.ToString();
-                    Pos = rxGathered.IndexOf("\n");
-                    if (Pos >= 0)
-                    {
-                        rxGathered.Substring(0, Pos + 1);
-                        rxData.Remove(0, Pos + 1);
-                    }
-                }
-                catch (System.ArgumentOutOfRangeException e)
-                {
-                    ErrorLog.Error("Error gathering - ArgumentOutOfRangeException: {0}", e);
-                }
-                catch (Exception e)
-                {
-                    ErrorLog.Error("Error gathering: {0}", e);
-                }
-            }
-        }
 
         #region Event Handlers
         void myKeypad_ButtonStateChange(GenericBase device, ButtonEventArgs args)
@@ -229,16 +166,6 @@ namespace ssCertDay3
             #endregion
 
         } // Event Handler
-        // *************************************************************************************************
-        // Comport Event Handler - NOTE: for test system TX on COM1 is tied to RX COM2 and vice versa
-        // *************************************************************************************************
-        void ControlSystem_SerialDataReceived(ComPort ReceivingComPort, ComPortSerialDataEventArgs args)
-        {
-            if (ReceivingComPort == ComPorts[2])
-            {
-                rxQueue.Enqueue(args.SerialData);       // Put all incoming data on the queue
-            }
-        }
         void ControlSystem_VersiportChange(Versiport port, VersiportEventArgs args)
         {
             if (port == myKeypad.VersiPorts[1])
@@ -278,7 +205,7 @@ namespace ssCertDay3
                     //The program has been resumed. Resume all the user threads/timers as needed.
                     break;
                 case (eProgramStatusEventType.Stopping):
-                    rxQueue.Enqueue(null);  // so the gather will complete
+                    myComPortController.Cleanup();
                     break;
             }
 
