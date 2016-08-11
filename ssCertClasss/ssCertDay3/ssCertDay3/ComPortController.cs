@@ -57,12 +57,6 @@ namespace ssCertDay3
             {
                 ErrorLog.Error("===>Exception Creating Thread in InitializeSystem: {0}", e.Message);
             }
-            finally
-            {
-               // if (rxThreadComHandler != null)
-               //     rxThreadComHandler.Abort();
-               // rxThreadComHandler = null;
-            }
 
         }
 
@@ -70,7 +64,6 @@ namespace ssCertDay3
         {
             if (ReceivingComPort == myComPorts[2])
             {
-                CrestronConsole.PrintLine("Queued{0}", args.SerialData);
                 rxQueue.Enqueue(args.SerialData);       // Put all incoming data on the queue
             }
         }
