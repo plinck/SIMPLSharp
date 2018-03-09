@@ -11,18 +11,28 @@ Version=1.0
 DefaultEntry=
 
 [ComSpecs]
+RemoteLinck=auto linckplake.mycrestron.com
+LinckPAC2Lake=auto 192.168.2.241
+LinckATLMC3ChimeRack=auto MC3ChimeRack
+DMATL=auto 192.168.1.127
 linckMC3ATL=auto 192.168.1.242
 linckPro3Lake=auto 192.168.2.240
 linckCP3Lake=auto 192.168.2.243
 ssCertClass=auto 172.22.0.1
-linckPro3Atlanta=auto 172.22.0.1
+linckPro3Atlanta=auto 192.168.1.240
 linckPro3ATL=auto 192.168.1.240
+CEN-GWEXER-01003BF8=auto 192.168.2.111
 
 [Notes]
+RemoteLinck=
+LinckPAC2Lake=
+LinckATLMC3ChimeRack=
+DMATL=
 linckMC3ATL=
 linckPro3Lake=
 linckCP3Lake=
 ssCertClass=
 linckPro3Atlanta=
 linckPro3ATL=
+CEN-GWEXER-01003BF8=
 
