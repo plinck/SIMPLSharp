@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 [Crestron_Toolbox_Address_Book]
 
 [Entries]
@@ -36,3 +37,33 @@ linckPro3Atlanta=
 linckPro3ATL=
 CEN-GWEXER-01003BF8=
 
+=======
+[Crestron_Toolbox_Address_Book]
+
+[Entries]
+This .xadr file was created using Toolbox v2.41 or later.=:slot 01
+It is not compatible with this version of Toolbox.=:slot 02
+Please open a .adr Address Book to continue.=:slot 03
+
+[AddressBookInfo]
+Schema=2.0
+Version=1.0
+DefaultEntry=
+
+[ComSpecs]
+linckMC3ATL=auto 192.168.1.242
+linckPro3Lake=auto 192.168.2.240
+linckCP3Lake=auto 192.168.2.243
+ssCertClass=auto 172.22.0.1
+linckPro3Atlanta=auto 172.22.0.1
+linckPro3ATL=auto 192.168.1.240
+
+[Notes]
+linckMC3ATL=
+linckPro3Lake=
+linckCP3Lake=
+ssCertClass=
+linckPro3Atlanta=
+linckPro3ATL=
+
+>>>>>>> origin/master
